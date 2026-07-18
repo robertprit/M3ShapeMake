@@ -28,6 +28,8 @@ fun M3ShapeExportPanel(
     onValidate: () -> Unit,
     onSaveLast: () -> Unit,
     onLoadLast: () -> Unit,
+    onExportFile: () -> Unit,
+    onImportFile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -43,7 +45,7 @@ fun M3ShapeExportPanel(
             fontWeight = FontWeight.Bold
         )
         Text(
-            "Local .m3shape.json for save/load and later exchange.",
+            "Local .m3shape.json — clipboard, internal save/load, or SAF file export/import.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -81,6 +83,17 @@ fun M3ShapeExportPanel(
             }
             OutlinedButton(onClick = onLoadLast, modifier = Modifier.weight(1f)) {
                 Text("Load Last Bundle", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedButton(onClick = onExportFile, modifier = Modifier.weight(1f)) {
+                Text("Export File", style = MaterialTheme.typography.labelSmall)
+            }
+            OutlinedButton(onClick = onImportFile, modifier = Modifier.weight(1f)) {
+                Text("Import File", style = MaterialTheme.typography.labelSmall)
             }
         }
         if (statusText.isNotBlank()) {

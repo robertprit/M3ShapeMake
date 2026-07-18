@@ -29,6 +29,7 @@ The app creates reusable shape and animation assets that other tools can import 
 - SVG export
 - AVD (Animated Vector Drawable) export
 - `.m3shape.json` asset bundle export
+- SAF file export/import (Android Storage Access Framework)
 - Local save/load of the last bundle
 - Bundle validation with diagnostics
 
@@ -94,6 +95,7 @@ app/src/main/java/com/m3shapes/editor/
 ├── M3ShapeAssetValidation.kt
 ├── M3ShapeAssetMapping.kt
 ├── M3ShapeAssetRepository.kt
+├── M3ShapeFileIo.kt
 ├── M3ShapeExportPanel.kt
 ├── ShapeModels.kt
 ├── ShapeResolver.kt
@@ -116,7 +118,7 @@ The app supports shape editing, animation sequencing, code/vector export, and a 
 
 Known limitations:
 
-- no Android SAF document picker yet
+- no persistable URI permissions or document library
 - local save/load currently uses internal app storage (`filesDir/last_m3shape_bundle.json`)
 - BlockVisual and FlowNodeVisual data exist as exchange placeholders only
 - no VisualTasker Studio importer is implemented in this repository

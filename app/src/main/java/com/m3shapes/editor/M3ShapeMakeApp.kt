@@ -27,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -173,6 +175,112 @@ fun M3ShapeMakeApp() {
                     drawnB = fitDrawnPolygonConfig(ensureDrawnCornerIds(source.config))
                     modeB = ShapeMode.Editor
                 }
+            }
+        }
+    }
+
+    fun applyValidatedBundle(bundle: M3ShapeMakerAssetBundle, validation: M3ValidationResult) {
+        assetNamespace = bundle.namespace
+        assetBundleId = bundle.bundleId
+        val restored = restoreSessionFromBundle(bundle)
+        restored.shapeA?.let { applyRestoredShape(it, forA = true) }
+        restored.shapeB?.let { applyRestoredShape(it, forA = false) }
+        if (restored.animationSteps.isNotEmpty()) {
+            animationSteps = restored.animationSteps
+            selectedStepId = restored.animationSteps.firstOrNull()?.id
+            nextStepIndex = restored.animationSteps.size + 1
+        }
+        sequencePlaying = false
+        loopPlaying = false
+        assetStatusText = formatDiagnostics(validation, restored.diagnostics)
+    }
+
+    fun importFailureMessage(error: Throwable): String {
+        val msg = error.message.orEmpty()
+        return when (error) {
+            is IllegalArgumentException -> when {
+                msg.contains("schemaVersion", ignoreCase = true) ->
+                    "Import failed: unsupported schema"
+                msg.contains("Unsupported format", ignoreCase = true) ||
+                    msg.contains("Invalid bundle JSON", ignoreCase = true) ||
+                    msg.contains("Failed to parse", ignoreCase = true) ->
+                    "Import failed: invalid JSON"
+                msg.contains("empty", ignoreCase = true) ->
+                    "Import failed: empty file"
+                else -> "Import failed: ${error.message ?: "invalid JSON"}"
+            }
+            else -> "Import failed: ${error.message ?: "unknown error"}"
+        }
+    }
+
+    var pendingExportJson by remember { mutableStateOf<String?>(null) }
+
+    val exportFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) {
+            assetStatusText = "Export canceled"
+            pendingExportJson = null
+            return@rememberLauncherForActivityResult
+        }
+        val json = pendingExportJson
+        pendingExportJson = null
+        if (json == null) {
+            assetStatusText = "Export failed: no bundle prepared"
+            Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+        writeTextToUri(context, uri, json).fold(
+            onSuccess = {
+                assetStatusText = "Export successful"
+                Toast.makeText(context, "Bundle exportiert", Toast.LENGTH_SHORT).show()
+            },
+            onFailure = { error ->
+                assetStatusText = "Export failed: ${error.message ?: "unknown error"}"
+                Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    val importFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) {
+            assetStatusText = "Import canceled"
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            try {
+                val json = readTextFromUri(context, uri).getOrElse { error ->
+                    assetStatusText = "Import failed: ${error.message ?: "file not readable"}"
+                    Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                if (json.isBlank()) {
+                    assetStatusText = "Import failed: empty file"
+                    Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val bundle = try {
+                    M3ShapeAssetCodec.decodeBundle(json)
+                } catch (e: IllegalArgumentException) {
+                    assetStatusText = importFailureMessage(e)
+                    Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val validation = M3ShapeAssetValidator.validateBundle(bundle)
+                if (!validation.valid) {
+                    assetStatusText = "Import failed: validation errors\n" +
+                        formatDiagnostics(validation)
+                    Toast.makeText(context, "Bundle ungültig", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                applyValidatedBundle(bundle, validation)
+                assetStatusText = "Import successful\n$assetStatusText"
+                Toast.makeText(context, "Bundle importiert", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                assetStatusText = importFailureMessage(e)
+                Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -636,25 +744,32 @@ fun M3ShapeMakeApp() {
                                     Toast.makeText(context, "Saved bundle invalid", Toast.LENGTH_SHORT).show()
                                     return@launch
                                 }
-                                assetNamespace = bundle.namespace
-                                assetBundleId = bundle.bundleId
-                                val restored = restoreSessionFromBundle(bundle)
-                                restored.shapeA?.let { applyRestoredShape(it, forA = true) }
-                                restored.shapeB?.let { applyRestoredShape(it, forA = false) }
-                                if (restored.animationSteps.isNotEmpty()) {
-                                    animationSteps = restored.animationSteps
-                                    selectedStepId = restored.animationSteps.firstOrNull()?.id
-                                    nextStepIndex = restored.animationSteps.size + 1
-                                }
-                                sequencePlaying = false
-                                loopPlaying = false
-                                assetStatusText = formatDiagnostics(validation, restored.diagnostics)
+                                applyValidatedBundle(bundle, validation)
                                 Toast.makeText(context, "Bundle geladen", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
                                 assetStatusText = "Load failed: ${e.message}"
                                 Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
                             }
                         }
+                    },
+                    onExportFile = {
+                        try {
+                            val bundle = buildCurrentBundle()
+                            val validation = M3ShapeAssetValidator.validateBundle(bundle)
+                            if (!validation.valid) {
+                                assetStatusText = "Export blocked.\n" + formatDiagnostics(validation)
+                                Toast.makeText(context, "Bundle invalid – not exported", Toast.LENGTH_SHORT).show()
+                            } else {
+                                pendingExportJson = M3ShapeAssetCodec.encodeBundle(bundle)
+                                exportFileLauncher.launch(defaultM3ShapeExportFilename(assetBundleId))
+                            }
+                        } catch (e: Exception) {
+                            assetStatusText = "Export failed: ${e.message ?: "unknown error"}"
+                            Toast.makeText(context, assetStatusText, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onImportFile = {
+                        importFileLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
                     }
                 )
             }

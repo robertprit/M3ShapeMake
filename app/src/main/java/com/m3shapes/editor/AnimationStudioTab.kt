@@ -125,7 +125,9 @@ fun AnimationStudioTab(
     onCopyBundleJson: () -> Unit,
     onValidateBundle: () -> Unit,
     onSaveLastBundle: () -> Unit,
-    onLoadLastBundle: () -> Unit
+    onLoadLastBundle: () -> Unit,
+    onExportFile: () -> Unit,
+    onImportFile: () -> Unit
 ) {
     val estimatedMs = estimateDurationMs(springStiffness, springMass)
 
@@ -444,7 +446,9 @@ fun AnimationStudioTab(
             onCopyJson = onCopyBundleJson,
             onValidate = onValidateBundle,
             onSaveLast = onSaveLastBundle,
-            onLoadLast = onLoadLastBundle
+            onLoadLast = onLoadLastBundle,
+            onExportFile = onExportFile,
+            onImportFile = onImportFile
         )
     }
 }
