@@ -59,7 +59,7 @@ fun generateComposeExport(
     fillColor: Color,
     targetColor: Color
 ): String {
-    // TODO: Add sequencer export support.
+    // TODO: Extend generateComposeExport to emit full Sequencer step lists, not only the live config.
     val colorHex = "#%08X".format(fillColor.toArgb())
     val targetHex = "#%08X".format(targetColor.toArgb())
     val shapeARef = shapeComposeReference(shapeA)

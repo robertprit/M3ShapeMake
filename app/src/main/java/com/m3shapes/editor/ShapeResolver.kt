@@ -123,7 +123,7 @@ fun drawnPolygonComposeReference(config: DrawnPolygonConfig): String {
         val smoothing = corner?.smoothing ?: config.smoothing
         "CornerRounding(radius = ${"%.2f".format(Locale.US, radius)}f, smoothing = ${"%.2f".format(Locale.US, smoothing)}f)"
     }
-    // TODO: Include locked flags in export if needed later.
+    // TODO: Include per-vertex locked flags in Compose RoundedPolygon export when importers need them.
     return buildString {
         append("RoundedPolygon(\n")
         append("        vertices = floatArrayOf($vertArray),\n")

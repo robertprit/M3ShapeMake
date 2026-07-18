@@ -1,0 +1,108 @@
+{
+  "format": "m3shapemaker_asset_bundle",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "M3ShapeMaker",
+    "version": "1.0.0"
+  },
+  "bundleId": "sample_bundle",
+  "namespace": "sample",
+  "shapes": [
+    {
+      "type": "shape_asset",
+      "schemaVersion": 1,
+      "namespace": "sample",
+      "id": "shape.sample.square",
+      "name": "Sample Square",
+      "kind": "DrawnPolygon",
+      "viewport": {
+        "width": 256.0,
+        "height": 256.0
+      },
+      "pathData": "M 32 32 L 224 32 L 224 224 L 32 224 Z",
+      "vertices": [
+        {
+          "id": "v1",
+          "x": 32.0,
+          "y": 32.0,
+          "rounding": 0.0,
+          "smoothing": 0.0,
+          "locked": false
+        },
+        {
+          "id": "v2",
+          "x": 224.0,
+          "y": 32.0,
+          "rounding": 0.0,
+          "smoothing": 0.0,
+          "locked": false
+        },
+        {
+          "id": "v3",
+          "x": 224.0,
+          "y": 224.0,
+          "rounding": 0.0,
+          "smoothing": 0.0,
+          "locked": false
+        },
+        {
+          "id": "v4",
+          "x": 32.0,
+          "y": 224.0,
+          "rounding": 0.0,
+          "smoothing": 0.0,
+          "locked": false
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "animations": [
+    {
+      "type": "animation_sequence",
+      "schemaVersion": 1,
+      "namespace": "sample",
+      "id": "animation.sample.scale",
+      "name": "Sample Scale",
+      "steps": [
+        {
+          "id": "step_1",
+          "name": "Step 1",
+          "durationMs": 500,
+          "easing": "EaseInOut",
+          "animations": [
+            "Scale"
+          ],
+          "stiffness": 400.0,
+          "damping": 0.75,
+          "mass": 1.0,
+          "reverse": false,
+          "morphStart": 0.0,
+          "morphEnd": 1.0,
+          "rotateStart": 0.0,
+          "rotateEnd": 360.0,
+          "scaleStart": 0.88,
+          "scaleEnd": 1.18,
+          "alphaStart": 0.45,
+          "alphaEnd": 1.0,
+          "colorStart": 0.0,
+          "colorEnd": 1.0,
+          "offsetXStart": -28.0,
+          "offsetXEnd": 28.0,
+          "offsetYStart": -22.0,
+          "offsetYEnd": 22.0,
+          "morphProgress": 0.0,
+          "rotation": 0.0,
+          "scale": 1.0,
+          "alpha": 1.0,
+          "wobble": 0.0,
+          "bounce": 0.0,
+          "holdMs": 0
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "blockVisuals": [],
+  "flowNodeVisuals": []
+}
