@@ -45,17 +45,6 @@ Bundles are meant for exchange between tools. They describe visual geometry and 
 
 See [docs/m3shape-format.md](docs/m3shape-format.md) and [docs/examples/sample_bundle.m3shape.json](docs/examples/sample_bundle.m3shape.json) for structure and a minimal valid example.
 
-## Non-Goals
-
-M3ShapeMake is intentionally not:
-
-- a full vector graphics editor
-- a Blockly clone
-- a Flowchart editor
-- a VisualTasker Studio plugin
-- a runtime automation engine
-- an EMScript generator
-- a cloud service
 
 ## Architecture Boundary
 
