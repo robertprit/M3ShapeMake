@@ -1,4 +1,5 @@
 # M3ShapeMake
+<img width="700" height="1500" alt="Screenshot_20260724_154841" src="https://github.com/user-attachments/assets/2c4dd636-6236-46de-92a6-8eafbcba4668" />
 
 A native Android shape and animation asset maker for Material 3 Expressive and custom polygon geometry.
 
