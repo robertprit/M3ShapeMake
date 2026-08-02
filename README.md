@@ -1,5 +1,4 @@
 # M3ShapeMake
-<img width="700" height="1500" alt="Screenshot_20260724_154841" src="https://github.com/user-attachments/assets/2c4dd636-6236-46de-92a6-8eafbcba4668" />
 
 A native Android shape and animation asset maker for Material 3 Expressive and custom polygon geometry.
 
@@ -46,6 +45,17 @@ Bundles are meant for exchange between tools. They describe visual geometry and 
 
 See [docs/m3shape-format.md](docs/m3shape-format.md) and [docs/examples/sample_bundle.m3shape.json](docs/examples/sample_bundle.m3shape.json) for structure and a minimal valid example.
 
+## Non-Goals
+
+M3ShapeMake is intentionally not:
+
+- a full vector graphics editor
+- a Blockly clone
+- a Flowchart editor
+- a VisualTasker Studio plugin
+- a runtime automation engine
+- an EMScript generator
+- a cloud service
 
 ## Architecture Boundary
 

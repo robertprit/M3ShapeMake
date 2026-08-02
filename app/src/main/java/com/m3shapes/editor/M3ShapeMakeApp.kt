@@ -1,7 +1,6 @@
 package com.m3shapes.editor
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -31,7 +31,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.widget.Toast
 
@@ -75,28 +74,25 @@ fun M3ShapeMakeApp() {
     }
     var studioSelectedColor by remember { mutableStateOf(studioColors[0]) }
     var animTargetColor by remember { mutableStateOf(studioColors[5]) }
-    var springStiffness by remember { mutableFloatStateOf(400f) }
-    var springDamping by remember { mutableFloatStateOf(0.75f) }
-    var springMass by remember { mutableFloatStateOf(1f) }
-    var selectedEasing by remember { mutableStateOf(StudioEasing.EaseInOut) }
+    var durationMs by remember { mutableIntStateOf(1_200) }
+    var profile by remember { mutableStateOf(StudioEasing.EaseInOut.profile()) }
     var reverseAnimation by remember { mutableStateOf(false) }
     var loopPlaying by remember { mutableStateOf(false) }
-
-    var useMorphSteps by remember { mutableStateOf(false) }
-    var morphSteps by remember { mutableStateOf(listOf(0f, 1f)) }
-    var selectedMorphStepIndex by remember { mutableIntStateOf(0) }
 
     var animationSteps by remember { mutableStateOf(emptyList<AnimationStep>()) }
     var sequencePlaying by remember { mutableStateOf(false) }
     var selectedStepId by remember { mutableStateOf<String?>(null) }
     var nextStepIndex by remember { mutableIntStateOf(1) }
+    var sequencerAddKind by remember { mutableStateOf(AnimationKind.Morph) }
+    var sequencerAddStartMs by remember { mutableIntStateOf(0) }
+    var sequencerDirection by remember { mutableStateOf(SequencerDirection.Forward) }
+    var sequencerPlayMode by remember { mutableStateOf(SequencerPlayMode.Once) }
+    var sequencerPlayheadMs by remember { mutableIntStateOf(0) }
 
     fun applyAnimationStep(step: AnimationStep) {
         enabledAnimations = step.enabledAnimations
-        springStiffness = step.stiffness
-        springDamping = step.damping
-        springMass = step.mass
-        selectedEasing = step.easing
+        durationMs = step.durationMs
+        profile = step.profile
         reverseAnimation = step.reverse
         morphRange = step.morphRange
         rotateRange = step.rotateRange
@@ -296,13 +292,9 @@ fun M3ShapeMakeApp() {
     LaunchedEffect(
         loopPlaying,
         enabledAnimations,
-        springStiffness,
-        springDamping,
-        springMass,
-        selectedEasing,
+        durationMs,
+        profile,
         reverseAnimation,
-        useMorphSteps,
-        morphSteps,
         morphRange,
         rotateRange,
         scaleRange,
@@ -335,35 +327,15 @@ fun M3ShapeMakeApp() {
         offsetXAnim.snapTo(offsetXFrom)
         offsetYAnim.snapTo(offsetYFrom)
 
-        val durationMs = estimateDurationMs(springStiffness, springMass)
-        val tweenSpec = tween<Float>(durationMs, easing = selectedEasing.toEasing())
-        val springSpec = spring<Float>(
-            dampingRatio = springDamping,
-            stiffness = springStiffnessForMass(springStiffness, springMass)
-        )
+        val effectiveDurationMs = durationMs.coerceAtLeast(1)
+        val tweenSpec = tween<Float>(effectiveDurationMs, easing = profile.toEasing())
 
         coroutineScope {
             if (AnimationKind.Morph in enabledAnimations) {
                 launch {
                     while (true) {
-                        val steps = morphSteps
-                            .map { it.coerceIn(0f, 1f) }
-                            .distinct()
-                            .sorted()
-
-                        if (useMorphSteps && steps.size >= 2) {
-                            val ordered = if (reverseAnimation) steps.asReversed() else steps
-                            val segmentMs = (durationMs / (ordered.size - 1)).coerceAtLeast(80)
-                            val segmentSpec = tween<Float>(segmentMs, easing = selectedEasing.toEasing())
-                            morphAnim.snapTo(ordered.first())
-                            for (i in 0 until ordered.lastIndex) {
-                                morphAnim.animateTo(ordered[i + 1], segmentSpec)
-                            }
-                            morphAnim.snapTo(ordered.first())
-                        } else {
-                            morphAnim.animateTo(morphTo, tweenSpec)
-                            morphAnim.animateTo(morphFrom, tweenSpec)
-                        }
+                        morphAnim.animateTo(morphTo, tweenSpec)
+                        morphAnim.animateTo(morphFrom, tweenSpec)
                     }
                 }
             }
@@ -371,23 +343,23 @@ fun M3ShapeMakeApp() {
                 launch {
                     while (true) {
                         rotationAnim.animateTo(rotateTo, tweenSpec)
-                        rotationAnim.snapTo(rotateFrom)
+                        rotationAnim.animateTo(rotateFrom, tweenSpec)
                     }
                 }
             }
             if (AnimationKind.Scale in enabledAnimations) {
                 launch {
                     while (true) {
-                        scaleAnim.animateTo(scaleTo, springSpec)
-                        scaleAnim.animateTo(scaleFrom, springSpec)
+                        scaleAnim.animateTo(scaleTo, tweenSpec)
+                        scaleAnim.animateTo(scaleFrom, tweenSpec)
                     }
                 }
             }
             if (AnimationKind.Alpha in enabledAnimations) {
                 launch {
                     while (true) {
-                        alphaAnim.animateTo(alphaTo, springSpec)
-                        alphaAnim.animateTo(alphaFrom, springSpec)
+                        alphaAnim.animateTo(alphaTo, tweenSpec)
+                        alphaAnim.animateTo(alphaFrom, tweenSpec)
                     }
                 }
             }
@@ -402,14 +374,14 @@ fun M3ShapeMakeApp() {
             if (AnimationKind.Position in enabledAnimations) {
                 launch {
                     while (true) {
-                        offsetXAnim.animateTo(offsetXTo, springSpec)
-                        offsetXAnim.animateTo(offsetXFrom, springSpec)
+                        offsetXAnim.animateTo(offsetXTo, tweenSpec)
+                        offsetXAnim.animateTo(offsetXFrom, tweenSpec)
                     }
                 }
                 launch {
                     while (true) {
-                        offsetYAnim.animateTo(offsetYTo, springSpec)
-                        offsetYAnim.animateTo(offsetYFrom, springSpec)
+                        offsetYAnim.animateTo(offsetYTo, tweenSpec)
+                        offsetYAnim.animateTo(offsetYFrom, tweenSpec)
                     }
                 }
             }
@@ -419,48 +391,151 @@ fun M3ShapeMakeApp() {
     LaunchedEffect(sequencePlaying) {
         if (!sequencePlaying) return@LaunchedEffect
         loopPlaying = false
-        val stepsSnapshot = animationSteps
-        for (step in stepsSnapshot) {
-            applyAnimationStep(step)
-            delay(step.durationMs.toLong())
-            if (step.holdMs > 0) {
-                delay(step.holdMs.toLong())
+        sequencerPlayheadMs = 0
+        val stepsSnapshot = animationSteps.normalizedTimeline()
+        if (stepsSnapshot.isEmpty()) {
+            sequencePlaying = false
+            return@LaunchedEffect
+        }
+        val totalMs = (stepsSnapshot.maxOfOrNull { it.endMs } ?: 0).coerceAtLeast(1)
+        val cycleMs = when (sequencerDirection) {
+            SequencerDirection.PingPong -> totalMs * 2
+            else -> totalMs
+        }.coerceAtLeast(1)
+
+        fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
+        suspend fun applyTimelineAt(timeMs: Int) {
+            var m = morphRange.display(reverseAnimation)
+            var r = rotateRange.display(reverseAnimation)
+            var s = scaleRange.display(reverseAnimation)
+            var a = alphaRange.display(reverseAnimation)
+            var c = colorRange.display(reverseAnimation)
+            var ox = offsetXRange.display(reverseAnimation)
+            var oy = offsetYRange.display(reverseAnimation)
+
+            AnimationKind.entries.forEach { kind ->
+                val step = stepsSnapshot
+                    .filter { it.kindOrFallback() == kind }
+                    .lastOrNull { timeMs in it.startMs until it.endMs }
+                if (step != null) {
+                    val duration = (step.endMs - step.startMs).coerceAtLeast(1)
+                    val raw = ((timeMs - step.startMs).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                    val eased = step.profile.curveY(raw).coerceIn(0f, 1f)
+                    when (kind) {
+                        AnimationKind.Morph -> {
+                            val from = if (step.reverse) step.morphRange.end else step.morphRange.start
+                            val to = if (step.reverse) step.morphRange.start else step.morphRange.end
+                            m = lerp(from, to, eased)
+                        }
+                        AnimationKind.Rotate -> {
+                            val from = if (step.reverse) step.rotateRange.end else step.rotateRange.start
+                            val to = if (step.reverse) step.rotateRange.start else step.rotateRange.end
+                            r = lerp(from, to, eased)
+                        }
+                        AnimationKind.Scale -> {
+                            val from = if (step.reverse) step.scaleRange.end else step.scaleRange.start
+                            val to = if (step.reverse) step.scaleRange.start else step.scaleRange.end
+                            s = lerp(from, to, eased)
+                        }
+                        AnimationKind.Alpha -> {
+                            val from = if (step.reverse) step.alphaRange.end else step.alphaRange.start
+                            val to = if (step.reverse) step.alphaRange.start else step.alphaRange.end
+                            a = lerp(from, to, eased)
+                        }
+                        AnimationKind.Colour -> {
+                            val from = if (step.reverse) step.colorRange.end else step.colorRange.start
+                            val to = if (step.reverse) step.colorRange.start else step.colorRange.end
+                            c = lerp(from, to, eased)
+                        }
+                        AnimationKind.Position -> {
+                            val fromX = if (step.reverse) step.offsetXRange.end else step.offsetXRange.start
+                            val toX = if (step.reverse) step.offsetXRange.start else step.offsetXRange.end
+                            val fromY = if (step.reverse) step.offsetYRange.end else step.offsetYRange.start
+                            val toY = if (step.reverse) step.offsetYRange.start else step.offsetYRange.end
+                            ox = lerp(fromX, toX, eased)
+                            oy = lerp(fromY, toY, eased)
+                        }
+                    }
+                }
+            }
+            morphAnim.snapTo(m)
+            rotationAnim.snapTo(r)
+            scaleAnim.snapTo(s)
+            alphaAnim.snapTo(a)
+            colorAnim.snapTo(c)
+            offsetXAnim.snapTo(ox)
+            offsetYAnim.snapTo(oy)
+        }
+
+        var startNanos = 0L
+        withFrameNanos { startNanos = it }
+        while (sequencePlaying) {
+            val now = withFrameNanos { it }
+            val elapsed = ((now - startNanos) / 1_000_000L).toInt()
+            val reachedEnd = elapsed >= cycleMs
+            val local = if (sequencerPlayMode == SequencerPlayMode.Loop) {
+                elapsed % cycleMs
+            } else {
+                elapsed.coerceAtMost(cycleMs)
+            }
+            val timelineMs = when (sequencerDirection) {
+                SequencerDirection.Forward, SequencerDirection.StartEnd -> local.coerceIn(0, totalMs)
+                SequencerDirection.Reverse -> (totalMs - local).coerceIn(0, totalMs)
+                SequencerDirection.PingPong -> if (local <= totalMs) local else (totalMs - (local - totalMs))
+            }
+            sequencerPlayheadMs = timelineMs
+            applyTimelineAt(timelineMs)
+            if (sequencerPlayMode == SequencerPlayMode.Once && reachedEnd) {
+                sequencePlaying = false
             }
         }
-        sequencePlaying = false
     }
 
-    val morphProgress = if (loopPlaying && AnimationKind.Morph in enabledAnimations) {
+    val morphProgress = if (sequencePlaying) {
+        morphAnim.value
+    } else if (loopPlaying && AnimationKind.Morph in enabledAnimations) {
         morphAnim.value
     } else {
         timelineManualProgress
     }
-    val canvasRotation = if (loopPlaying && AnimationKind.Rotate in enabledAnimations) {
+    val canvasRotation = if (sequencePlaying) {
+        rotationAnim.value
+    } else if (loopPlaying && AnimationKind.Rotate in enabledAnimations) {
         rotationAnim.value
     } else {
         rotateRange.display(reverseAnimation)
     }
-    val canvasScale = if (loopPlaying && AnimationKind.Scale in enabledAnimations) {
+    val canvasScale = if (sequencePlaying) {
+        scaleAnim.value
+    } else if (loopPlaying && AnimationKind.Scale in enabledAnimations) {
         scaleAnim.value
     } else {
         scaleRange.display(reverseAnimation)
     }
-    val canvasAlpha = if (loopPlaying && AnimationKind.Alpha in enabledAnimations) {
+    val canvasAlpha = if (sequencePlaying) {
+        alphaAnim.value
+    } else if (loopPlaying && AnimationKind.Alpha in enabledAnimations) {
         alphaAnim.value
     } else {
         alphaRange.display(reverseAnimation)
     }
-    val canvasColorBlend = if (loopPlaying && AnimationKind.Colour in enabledAnimations) {
+    val canvasColorBlend = if (sequencePlaying) {
+        colorAnim.value
+    } else if (loopPlaying && AnimationKind.Colour in enabledAnimations) {
         colorAnim.value
     } else {
         colorRange.display(reverseAnimation)
     }
-    val canvasOffsetX = if (loopPlaying && AnimationKind.Position in enabledAnimations) {
+    val canvasOffsetX = if (sequencePlaying) {
+        offsetXAnim.value
+    } else if (loopPlaying && AnimationKind.Position in enabledAnimations) {
         offsetXAnim.value
     } else {
         offsetXRange.display(reverseAnimation)
     }
-    val canvasOffsetY = if (loopPlaying && AnimationKind.Position in enabledAnimations) {
+    val canvasOffsetY = if (sequencePlaying) {
+        offsetYAnim.value
+    } else if (loopPlaying && AnimationKind.Position in enabledAnimations) {
         offsetYAnim.value
     } else {
         offsetYRange.display(reverseAnimation)
@@ -480,7 +555,7 @@ fun M3ShapeMakeApp() {
                     Column {
                         Text("M3ShapeMake", fontWeight = FontWeight.Bold)
                         Text(
-                            "Shape Editor · Animation Studio",
+                            "Shape Editor · Native SVG Editor · Animation Studio",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
                         )
@@ -506,6 +581,11 @@ fun M3ShapeMakeApp() {
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
+                    text = { Text("SVG Editor") }
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
                     text = { Text("Animation Studio") }
                 )
             }
@@ -545,7 +625,8 @@ fun M3ShapeMakeApp() {
                     studioSelectedColor = studioSelectedColor,
                     onStudioSelectedColorChange = { studioSelectedColor = it }
                 )
-                1 -> AnimationStudioTab(
+                1 -> NativeSvgEditorTab()
+                2 -> AnimationStudioTab(
                     morph = morph,
                     morphProgress = morphProgress,
                     canvasRotation = canvasRotation,
@@ -559,18 +640,14 @@ fun M3ShapeMakeApp() {
                         if (it) sequencePlaying = false
                         loopPlaying = it
                     },
-                    springStiffness = springStiffness,
-                    onSpringStiffnessChange = { springStiffness = it },
-                    springDamping = springDamping,
-                    onSpringDampingChange = { springDamping = it },
-                    springMass = springMass,
-                    onSpringMassChange = { springMass = it },
+                    durationMs = durationMs,
+                    onDurationMsChange = { durationMs = it },
+                    profile = profile,
+                    onProfileChange = { profile = it },
                     reverseAnimation = reverseAnimation,
                     onReverseAnimationChange = { reverseAnimation = it },
                     enabledAnimations = enabledAnimations,
                     onEnabledAnimationsChange = { enabledAnimations = it },
-                    selectedEasing = selectedEasing,
-                    onSelectedEasingChange = { selectedEasing = it },
                     timelineManualProgress = timelineManualProgress,
                     onTimelineManualProgressChange = {
                         timelineManualProgress = it
@@ -612,25 +689,29 @@ fun M3ShapeMakeApp() {
                         offsetYRange = it
                         loopPlaying = false
                     },
-                    useMorphSteps = useMorphSteps,
-                    onUseMorphStepsChange = { useMorphSteps = it },
-                    morphSteps = morphSteps,
-                    onMorphStepsChange = { morphSteps = it },
-                    selectedMorphStepIndex = selectedMorphStepIndex,
-                    onSelectedMorphStepIndexChange = { selectedMorphStepIndex = it },
                     animTargetColor = animTargetColor,
                     onAnimTargetColorChange = { animTargetColor = it },
+                    studioColors = studioColors,
                     animationSteps = animationSteps,
                     selectedStepId = selectedStepId,
                     sequencePlaying = sequencePlaying,
+                    sequencerPlayheadMs = sequencerPlayheadMs,
+                    sequencerAddKind = sequencerAddKind,
+                    onSequencerAddKindChange = { sequencerAddKind = it },
+                    sequencerAddStartMs = sequencerAddStartMs,
+                    onSequencerAddStartMsChange = { sequencerAddStartMs = it.coerceAtLeast(0) },
+                    sequencerDirection = sequencerDirection,
+                    onSequencerDirectionChange = { sequencerDirection = it },
+                    sequencerPlayMode = sequencerPlayMode,
+                    onSequencerPlayModeChange = { sequencerPlayMode = it },
                     onAddCurrentStep = {
+                        val start = sequencerAddStartMs.coerceAtLeast(0)
                         val step = createAnimationStepFromCurrentConfig(
                             stepNumber = nextStepIndex,
-                            enabledAnimations = enabledAnimations,
-                            stiffness = springStiffness,
-                            damping = springDamping,
-                            mass = springMass,
-                            easing = selectedEasing,
+                            kind = sequencerAddKind,
+                            startMs = start,
+                            durationMs = durationMs,
+                            profile = profile,
                             reverse = reverseAnimation,
                             morphRange = morphRange,
                             rotateRange = rotateRange,
@@ -640,7 +721,9 @@ fun M3ShapeMakeApp() {
                             offsetXRange = offsetXRange,
                             offsetYRange = offsetYRange
                         )
-                        animationSteps = animationSteps + step
+                        val placed = resolveNoOverlapForKind(animationSteps, step)
+                        animationSteps = (animationSteps + placed).normalizedTimeline()
+                        sequencerAddStartMs = (placed.endMs + 50)
                         selectedStepId = step.id
                         nextStepIndex += 1
                     },
@@ -649,15 +732,18 @@ fun M3ShapeMakeApp() {
                         applyAnimationStep(step)
                     },
                     onDuplicateStep = { step ->
-                        val copy = step.duplicated(
+                        val copy = resolveNoOverlapForKind(
+                            animationSteps,
+                            step.duplicated(
                             newId = "step_$nextStepIndex",
                             newName = "Step $nextStepIndex"
+                            ).withTimeline(step.endMs + 50, step.endMs + 50 + step.durationMs)
                         )
                         val index = animationSteps.indexOfFirst { it.id == step.id }
                         animationSteps = if (index >= 0) {
-                            animationSteps.toMutableList().apply { add(index + 1, copy) }
+                            animationSteps.toMutableList().apply { add(index + 1, copy) }.normalizedTimeline()
                         } else {
-                            animationSteps + copy
+                            (animationSteps + copy).normalizedTimeline()
                         }
                         selectedStepId = copy.id
                         nextStepIndex += 1
@@ -666,11 +752,12 @@ fun M3ShapeMakeApp() {
                         animationSteps = animationSteps.filterNot { it.id == step.id }
                         if (selectedStepId == step.id) selectedStepId = null
                     },
-                    onMoveStepUp = { index ->
-                        animationSteps = animationSteps.moveStep(index, -1)
-                    },
-                    onMoveStepDown = { index ->
-                        animationSteps = animationSteps.moveStep(index, 1)
+                    onUpdateStepTimeline = { updated ->
+                        val merged = animationSteps.map { if (it.id == updated.id) updated else it }
+                        val resolved = merged.firstOrNull { it.id == updated.id }?.let { candidate ->
+                            resolveNoOverlapForKind(merged, candidate)
+                        } ?: updated
+                        animationSteps = merged.map { if (it.id == updated.id) resolved else it }.normalizedTimeline()
                     },
                     onPlaySequence = {
                         if (animationSteps.isEmpty()) return@AnimationStudioTab
@@ -680,6 +767,7 @@ fun M3ShapeMakeApp() {
                     onStopSequence = { sequencePlaying = false },
                     onClearSequence = {
                         sequencePlaying = false
+                        sequencerPlayheadMs = 0
                         animationSteps = emptyList()
                         selectedStepId = null
                     },

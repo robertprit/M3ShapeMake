@@ -10,3 +10,4 @@
 /captures
 .externalNativeBuild
 hs_err_pid*.log
+.kotlin/

@@ -37,6 +37,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,18 +70,10 @@ fun AnimationStudioTab(
     canvasFillColor: Color,
     loopPlaying: Boolean,
     onLoopPlayingChange: (Boolean) -> Unit,
-    springStiffness: Float,
-    onSpringStiffnessChange: (Float) -> Unit,
-    springDamping: Float,
-    onSpringDampingChange: (Float) -> Unit,
-    springMass: Float,
-    onSpringMassChange: (Float) -> Unit,
-    reverseAnimation: Boolean,
-    onReverseAnimationChange: (Boolean) -> Unit,
-    enabledAnimations: Set<AnimationKind>,
-    onEnabledAnimationsChange: (Set<AnimationKind>) -> Unit,
-    selectedEasing: StudioEasing,
-    onSelectedEasingChange: (StudioEasing) -> Unit,
+    durationMs: Int,
+    onDurationMsChange: (Int) -> Unit,
+    profile: BezierProfile,
+    onProfileChange: (BezierProfile) -> Unit,
     timelineManualProgress: Float,
     onTimelineManualProgressChange: (Float) -> Unit,
     morphRange: FloatRangeValue,
@@ -97,23 +90,30 @@ fun AnimationStudioTab(
     onOffsetXRangeChange: (FloatRangeValue) -> Unit,
     offsetYRange: FloatRangeValue,
     onOffsetYRangeChange: (FloatRangeValue) -> Unit,
-    useMorphSteps: Boolean,
-    onUseMorphStepsChange: (Boolean) -> Unit,
-    morphSteps: List<Float>,
-    onMorphStepsChange: (List<Float>) -> Unit,
-    selectedMorphStepIndex: Int,
-    onSelectedMorphStepIndexChange: (Int) -> Unit,
     animTargetColor: Color,
     onAnimTargetColorChange: (Color) -> Unit,
+    reverseAnimation: Boolean,
+    onReverseAnimationChange: (Boolean) -> Unit,
+    enabledAnimations: Set<AnimationKind>,
+    onEnabledAnimationsChange: (Set<AnimationKind>) -> Unit,
+    studioColors: List<Color>,
     animationSteps: List<AnimationStep>,
     selectedStepId: String?,
     sequencePlaying: Boolean,
+    sequencerPlayheadMs: Int,
+    sequencerAddKind: AnimationKind,
+    onSequencerAddKindChange: (AnimationKind) -> Unit,
+    sequencerAddStartMs: Int,
+    onSequencerAddStartMsChange: (Int) -> Unit,
+    sequencerDirection: SequencerDirection,
+    onSequencerDirectionChange: (SequencerDirection) -> Unit,
+    sequencerPlayMode: SequencerPlayMode,
+    onSequencerPlayModeChange: (SequencerPlayMode) -> Unit,
     onAddCurrentStep: () -> Unit,
     onApplyStep: (AnimationStep) -> Unit,
     onDuplicateStep: (AnimationStep) -> Unit,
     onDeleteStep: (AnimationStep) -> Unit,
-    onMoveStepUp: (Int) -> Unit,
-    onMoveStepDown: (Int) -> Unit,
+    onUpdateStepTimeline: (AnimationStep) -> Unit,
     onPlaySequence: () -> Unit,
     onStopSequence: () -> Unit,
     onClearSequence: () -> Unit,
@@ -129,7 +129,6 @@ fun AnimationStudioTab(
     onExportFile: () -> Unit,
     onImportFile: () -> Unit
 ) {
-    val estimatedMs = estimateDurationMs(springStiffness, springMass)
 
     Column(
         Modifier
@@ -180,64 +179,83 @@ fun AnimationStudioTab(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = { onLoopPlayingChange(!loopPlaying) }) {
+            IconButton(onClick = {
+                if (sequencePlaying) onStopSequence() else onLoopPlayingChange(!loopPlaying)
+            }) {
                 Icon(
-                    if (loopPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    "Play/Pause"
+                    if (loopPlaying || sequencePlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    "Preview Play/Pause"
                 )
             }
             Text(
-                "~${estimatedMs} ms",
+                "${durationMs} ms",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Text("Spring Tokens", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        Text("Timing Profile", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Stiffness", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
+            Text("Duration", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
             Slider(
-                value = springStiffness,
-                onValueChange = onSpringStiffnessChange,
-                valueRange = 50f..2_000f,
+                value = durationMs.toFloat(),
+                onValueChange = { onDurationMsChange((it / 50f).roundToInt() * 50) },
+                valueRange = 200f..4_000f,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                springStiffness.roundToInt().toString(),
+                "$durationMs ms",
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(44.dp),
+                modifier = Modifier.width(64.dp),
                 textAlign = TextAlign.End
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Damping", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
-            Slider(
-                value = springDamping,
-                onValueChange = onSpringDampingChange,
-                valueRange = 0.05f..1.5f,
+        BezierCurveEditor(
+            profile = profile,
+            onProfileChange = onProfileChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            BezierCoordField(
+                label = "x1",
+                value = profile.x1,
+                onChange = { onProfileChange(profile.copy(x1 = it.coerceIn(0f, 1f))) },
                 modifier = Modifier.weight(1f)
             )
-            Text(
-                "%.2f".format(springDamping),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(44.dp),
-                textAlign = TextAlign.End
+            BezierCoordField(
+                label = "y1",
+                value = profile.y1,
+                onChange = { onProfileChange(profile.copy(y1 = it.coerceIn(0f, 1f))) },
+                modifier = Modifier.weight(1f)
+            )
+            BezierCoordField(
+                label = "x2",
+                value = profile.x2,
+                onChange = { onProfileChange(profile.copy(x2 = it.coerceIn(0f, 1f))) },
+                modifier = Modifier.weight(1f)
+            )
+            BezierCoordField(
+                label = "y2",
+                value = profile.y2,
+                onChange = { onProfileChange(profile.copy(y2 = it.coerceIn(0f, 1f))) },
+                modifier = Modifier.weight(1f)
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Mass", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
-            Slider(
-                value = springMass,
-                onValueChange = onSpringMassChange,
-                valueRange = 0.1f..10f,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                "%.2f".format(springMass),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(44.dp),
-                textAlign = TextAlign.End
-            )
+        Text("Presets", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            StudioEasing.entries.forEach { preset ->
+                val selected = profile.matches(preset.profile())
+                FilterChip(
+                    selected = selected,
+                    onClick = { onProfileChange(preset.profile()) },
+                    label = { Text(preset.label, style = MaterialTheme.typography.labelSmall) }
+                )
+            }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -255,56 +273,6 @@ fun AnimationStudioTab(
             )
         }
 
-        Text("Morph Steps", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-        Text(
-            "Intermediate morph positions for the current animation.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = useMorphSteps,
-                onClick = { onUseMorphStepsChange(!useMorphSteps) },
-                label = { Text("Morph-Sequence", style = MaterialTheme.typography.labelSmall) }
-            )
-            OutlinedButton(
-                onClick = {
-                    val p = morphProgress.coerceIn(0f, 1f)
-                    val next = (morphSteps + p).distinct().sorted()
-                    onMorphStepsChange(next)
-                    onSelectedMorphStepIndexChange(next.indexOfFirst { kotlin.math.abs(it - p) < 0.0001f })
-                }
-            ) { Text("+ Step", style = MaterialTheme.typography.labelSmall) }
-            OutlinedButton(
-                onClick = {
-                    val steps = morphSteps.distinct().sorted()
-                    if (steps.size <= 2) return@OutlinedButton
-                    val clampedIndex = selectedMorphStepIndex.coerceIn(0, steps.lastIndex)
-                    val v = steps[clampedIndex]
-                    if (v == 0f || v == 1f) return@OutlinedButton
-                    onMorphStepsChange(steps.filterNot { it == v })
-                    onSelectedMorphStepIndexChange(0)
-                }
-            ) { Text("− Step", style = MaterialTheme.typography.labelSmall) }
-        }
-        StepLine(
-            steps = morphSteps,
-            selectedIndex = selectedMorphStepIndex,
-            onSelectedIndexChange = onSelectedMorphStepIndexChange,
-            onStepsChange = onMorphStepsChange,
-            onScrub = onTimelineManualProgressChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
-        )
-
         Text("Animation", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             AnimationKind.entries.forEach { kind ->
@@ -317,17 +285,6 @@ fun AnimationStudioTab(
                         )
                     },
                     label = { Text(kind.label, style = MaterialTheme.typography.labelSmall) }
-                )
-            }
-        }
-
-        Text("Easing", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            StudioEasing.entries.forEach { easing ->
-                FilterChip(
-                    selected = selectedEasing == easing,
-                    onClick = { onSelectedEasingChange(easing) },
-                    label = { Text(easing.label, style = MaterialTheme.typography.labelSmall) }
                 )
             }
         }
@@ -426,12 +383,20 @@ fun AnimationStudioTab(
             steps = animationSteps,
             selectedStepId = selectedStepId,
             sequencePlaying = sequencePlaying,
+            playheadMs = sequencerPlayheadMs,
+            addKind = sequencerAddKind,
+            onAddKindChange = onSequencerAddKindChange,
+            addStartMs = sequencerAddStartMs,
+            onAddStartMsChange = onSequencerAddStartMsChange,
+            direction = sequencerDirection,
+            onDirectionChange = onSequencerDirectionChange,
+            playMode = sequencerPlayMode,
+            onPlayModeChange = onSequencerPlayModeChange,
             onAddCurrent = onAddCurrentStep,
             onApply = onApplyStep,
             onDuplicate = onDuplicateStep,
             onDelete = onDeleteStep,
-            onMoveUp = onMoveStepUp,
-            onMoveDown = onMoveStepDown,
+            onUpdateTimeline = onUpdateStepTimeline,
             onPlaySequence = onPlaySequence,
             onStopSequence = onStopSequence,
             onClearSequence = onClearSequence
@@ -482,73 +447,3 @@ private fun ParamRangeSlider(
     }
 }
 
-@Composable
-internal fun StepLine(
-    steps: List<Float>,
-    selectedIndex: Int,
-    onSelectedIndexChange: (Int) -> Unit,
-    onStepsChange: (List<Float>) -> Unit,
-    onScrub: (Float) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val sorted = remember(steps) { steps.map { it.coerceIn(0f, 1f) }.distinct().sorted() }
-    val primary = MaterialTheme.colorScheme.primary
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-    Canvas(
-        modifier = modifier
-            .pointerInput(sorted, selectedIndex) {
-                detectTapGestures { pos ->
-                    val p = (pos.x / size.width).coerceIn(0f, 1f)
-                    val nearestIndex = sorted.indices.minByOrNull { ix ->
-                        kotlin.math.abs(sorted[ix] - p)
-                    } ?: 0
-                    val nearest = sorted[nearestIndex]
-                    if (kotlin.math.abs(nearest - p) < 0.05f) {
-                        onSelectedIndexChange(nearestIndex)
-                        onScrub(nearest)
-                    } else {
-                        onScrub(p)
-                    }
-                }
-            }
-            .pointerInput(sorted, selectedIndex) {
-                detectDragGestures(
-                    onDrag = { change, _ ->
-                        change.consume()
-                        if (sorted.isEmpty()) return@detectDragGestures
-                        val ix = selectedIndex.coerceIn(0, sorted.lastIndex)
-                        val p = (change.position.x / size.width).coerceIn(0f, 1f)
-                        val v = sorted[ix]
-                        if (v == 0f || v == 1f) return@detectDragGestures
-                        val updated = sorted.toMutableList()
-                        updated[ix] = p
-                        val normalized = updated.map { it.coerceIn(0f, 1f) }.distinct().sorted()
-                        onStepsChange(normalized)
-                        onSelectedIndexChange(
-                            normalized.indexOfFirst { kotlin.math.abs(it - p) < 0.0001f }.coerceAtLeast(0)
-                        )
-                        onScrub(p)
-                    }
-                )
-            }
-    ) {
-        val midY = size.height / 2f
-        val lineColor = onSurfaceVariant.copy(alpha = 0.65f)
-        drawLine(lineColor, Offset(12f, midY), Offset(size.width - 12f, midY), strokeWidth = 3f)
-
-        sorted.forEachIndexed { ix, v ->
-            val x = 12f + (size.width - 24f) * v
-            val selected = ix == selectedIndex
-            drawCircle(
-                color = if (selected) primary else onSurfaceVariant,
-                radius = if (selected) 8f else 6f,
-                center = Offset(x, midY)
-            )
-            drawCircle(
-                color = Color.White,
-                radius = if (selected) 3.5f else 3f,
-                center = Offset(x, midY)
-            )
-        }
-    }
-}

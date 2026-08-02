@@ -1,5 +1,4 @@
 package com.m3shapes.editor
-
 fun ShapeSource.toM3ShapeAsset(
     namespace: String,
     id: String,
@@ -50,7 +49,6 @@ fun ShapeSource.toM3ShapeAsset(
         metadata = metadata
     )
 }
-
 fun M3ShapeAsset.toShapeSource(): ShapeSource? = when (kind) {
     M3ShapeAssetKind.MaterialPreset -> {
         val materialName = metadata["materialId"]
@@ -94,57 +92,71 @@ fun M3ShapeAsset.toShapeSource(): ShapeSource? = when (kind) {
     }
     else -> null
 }
-
-fun AnimationStep.toM3AnimationStepAsset(): M3AnimationStepAsset = M3AnimationStepAsset(
-    id = id,
-    name = name,
-    durationMs = durationMs.coerceAtLeast(1),
-    easing = easing.name,
-    animations = enabledAnimations.map { it.name },
-    stiffness = stiffness,
-    damping = damping,
-    mass = mass,
-    reverse = reverse,
-    morphStart = morphRange.start,
-    morphEnd = morphRange.end,
-    rotateStart = rotateRange.start,
-    rotateEnd = rotateRange.end,
-    scaleStart = scaleRange.start,
-    scaleEnd = scaleRange.end,
-    alphaStart = alphaRange.start,
-    alphaEnd = alphaRange.end,
-    colorStart = colorRange.start,
-    colorEnd = colorRange.end,
-    offsetXStart = offsetXRange.start,
-    offsetXEnd = offsetXRange.end,
-    offsetYStart = offsetYRange.start,
-    offsetYEnd = offsetYRange.end,
-    morphProgress = morphRange.display(reverse),
-    rotation = rotateRange.display(reverse),
-    scale = scaleRange.display(reverse),
-    alpha = alphaRange.display(reverse),
-    wobble = 0f,
-    bounce = 0f,
-    holdMs = holdMs.coerceAtLeast(0)
-)
-
+fun AnimationStep.toM3AnimationStepAsset(): M3AnimationStepAsset {
+    val presetName = StudioEasing.entries.firstOrNull { it.profile().matches(profile) }?.name ?: "Custom"
+    val kind = kindOrFallback()
+    return M3AnimationStepAsset(
+        id = id,
+        name = name,
+        startMs = startMs.coerceAtLeast(0),
+        endMs = endMs.coerceAtLeast(startMs + 100),
+        durationMs = durationMs.coerceAtLeast(1),
+        easing = presetName,
+        bezierX1 = profile.x1,
+        bezierY1 = profile.y1,
+        bezierX2 = profile.x2,
+        bezierY2 = profile.y2,
+        animations = listOf(kind.name),
+        reverse = reverse,
+        morphStart = morphRange.start,
+        morphEnd = morphRange.end,
+        rotateStart = rotateRange.start,
+        rotateEnd = rotateRange.end,
+        scaleStart = scaleRange.start,
+        scaleEnd = scaleRange.end,
+        alphaStart = alphaRange.start,
+        alphaEnd = alphaRange.end,
+        colorStart = colorRange.start,
+        colorEnd = colorRange.end,
+        offsetXStart = offsetXRange.start,
+        offsetXEnd = offsetXRange.end,
+        offsetYStart = offsetYRange.start,
+        offsetYEnd = offsetYRange.end,
+        morphProgress = morphRange.display(reverse),
+        rotation = rotateRange.display(reverse),
+        scale = scaleRange.display(reverse),
+        alpha = alphaRange.display(reverse),
+        wobble = 0f,
+        bounce = 0f,
+        holdMs = holdMs.coerceAtLeast(0)
+    )
+}
 fun M3AnimationStepAsset.toAnimationStep(): AnimationStep {
     val kinds = animations.mapNotNull { raw ->
         AnimationKind.entries.find {
             it.name.equals(raw, ignoreCase = true) || it.label.equals(raw, ignoreCase = true)
         }
     }.toSet()
-    val easingValue = StudioEasing.entries.find {
+    val kind = kinds.firstOrNull() ?: AnimationKind.Morph
+    val safeStart = startMs.coerceAtLeast(0)
+    val safeEnd = endMs.coerceAtLeast(safeStart + durationMs.coerceAtLeast(100))
+    val presetProfile = StudioEasing.entries.find {
         it.name.equals(easing, ignoreCase = true) || it.label.equals(easing, ignoreCase = true)
-    } ?: StudioEasing.EaseInOut
+    }?.profile()
+    val profile = presetProfile ?: BezierProfile(
+        x1 = bezierX1,
+        y1 = bezierY1,
+        x2 = bezierX2,
+        y2 = bezierY2
+    ).clamped()
     return AnimationStep(
         id = id.ifBlank { "step_imported" },
         name = name.ifBlank { id.ifBlank { "Imported Step" } },
-        enabledAnimations = kinds,
-        stiffness = stiffness.coerceIn(50f, 10_000f),
-        damping = damping.coerceIn(0.05f, 1.5f),
-        mass = mass.coerceIn(0.1f, 10f),
-        easing = easingValue,
+        enabledAnimations = setOf(kind),
+        startMs = safeStart,
+        endMs = safeEnd,
+        durationMs = (safeEnd - safeStart).coerceAtLeast(100),
+        profile = profile,
         reverse = reverse,
         morphRange = FloatRangeValue(morphStart, morphEnd).coerced(0f..1f),
         rotateRange = FloatRangeValue(rotateStart, rotateEnd).coerced(0f..360f),
@@ -156,7 +168,6 @@ fun M3AnimationStepAsset.toAnimationStep(): AnimationStep {
         holdMs = holdMs.coerceAtLeast(0)
     )
 }
-
 fun AnimationSequence.toM3AnimationSequenceAsset(
     namespace: String,
     id: String,
@@ -167,10 +178,8 @@ fun AnimationSequence.toM3AnimationSequenceAsset(
     name = name,
     steps = steps.map { it.toM3AnimationStepAsset() }
 )
-
 fun M3AnimationSequenceAsset.toAnimationSteps(): List<AnimationStep> =
     steps.map { it.toAnimationStep() }
-
 fun createBundleFromCurrentSession(
     namespace: String,
     bundleId: String,
@@ -204,7 +213,6 @@ fun createBundleFromCurrentSession(
         animations = animations
     )
 }
-
 data class M3BundleRestoreResult(
     val shapeA: ShapeSource?,
     val shapeB: ShapeSource?,
@@ -213,12 +221,10 @@ data class M3BundleRestoreResult(
     val animationSteps: List<AnimationStep>,
     val diagnostics: List<M3ImportDiagnostic>
 )
-
 fun restoreSessionFromBundle(bundle: M3ShapeMakerAssetBundle): M3BundleRestoreResult {
     val diagnostics = mutableListOf<M3ImportDiagnostic>()
     val shapeAAsset = bundle.shapes.find { it.id == "shape_a" } ?: bundle.shapes.getOrNull(0)
     val shapeBAsset = bundle.shapes.find { it.id == "shape_b" } ?: bundle.shapes.getOrNull(1)
-
     fun restoreShape(asset: M3ShapeAsset?, label: String): Pair<ShapeSource?, ShapeMode?> {
         if (asset == null) {
             diagnostics += M3ImportDiagnostic(
@@ -245,12 +251,10 @@ fun restoreSessionFromBundle(bundle: M3ShapeMakerAssetBundle): M3BundleRestoreRe
         }
         return source to mode
     }
-
     val (shapeA, modeA) = restoreShape(shapeAAsset, "shape_a")
     val (shapeB, modeB) = restoreShape(shapeBAsset, "shape_b")
-
     val sequence = bundle.animations.find { it.id == "main_sequence" } ?: bundle.animations.firstOrNull()
-    val steps = sequence?.toAnimationSteps().orEmpty()
+    val steps = sequence?.toAnimationSteps().orEmpty().normalizedTimeline()
     if (bundle.animations.isNotEmpty() && steps.isEmpty()) {
         diagnostics += M3ImportDiagnostic(
             M3DiagnosticSeverity.Warning,
@@ -258,7 +262,6 @@ fun restoreSessionFromBundle(bundle: M3ShapeMakerAssetBundle): M3BundleRestoreRe
             "Animation sequence present but no steps restored"
         )
     }
-
     return M3BundleRestoreResult(
         shapeA = shapeA,
         shapeB = shapeB,

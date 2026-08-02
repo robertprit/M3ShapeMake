@@ -109,6 +109,22 @@ object M3ShapeAssetValidator {
                         jsonPath = "$sPath.durationMs"
                     )
                 }
+                if (step.startMs < 0) {
+                    diagnostics += error(
+                        "START_INVALID",
+                        "startMs must be >= 0",
+                        assetId = step.id,
+                        jsonPath = "$sPath.startMs"
+                    )
+                }
+                if (step.endMs <= step.startMs) {
+                    diagnostics += error(
+                        "END_INVALID",
+                        "endMs must be > startMs",
+                        assetId = step.id,
+                        jsonPath = "$sPath.endMs"
+                    )
+                }
                 if (step.holdMs < 0) {
                     diagnostics += error(
                         "HOLD_INVALID",
@@ -119,6 +135,7 @@ object M3ShapeAssetValidator {
                 }
                 listOf(
                     step.stiffness, step.damping, step.mass,
+                    step.bezierX1, step.bezierY1, step.bezierX2, step.bezierY2,
                     step.morphStart, step.morphEnd,
                     step.rotateStart, step.rotateEnd,
                     step.scaleStart, step.scaleEnd,
@@ -139,6 +156,16 @@ object M3ShapeAssetValidator {
                         return@forEachIndexed
                     }
                 }
+                if (!step.bezierX1.isFiniteNumber() || !step.bezierX2.isFiniteNumber() ||
+                    step.bezierX1 !in 0f..1f || step.bezierX2 !in 0f..1f
+                ) {
+                    diagnostics += error(
+                        "BEZIER_X_RANGE",
+                        "bezierX1/bezierX2 must be finite and within 0..1",
+                        assetId = step.id,
+                        jsonPath = "$sPath.bezierX1"
+                    )
+                }
                 step.animations.forEach { anim ->
                     if (AnimationKind.entries.none { it.name.equals(anim, ignoreCase = true) ||
                             it.label.equals(anim, ignoreCase = true) }
@@ -152,7 +179,9 @@ object M3ShapeAssetValidator {
                     }
                 }
                 if (StudioEasing.entries.none { it.name.equals(step.easing, ignoreCase = true) ||
-                        it.label.equals(step.easing, ignoreCase = true) }
+                        it.label.equals(step.easing, ignoreCase = true) } &&
+                    !step.easing.equals("Custom", ignoreCase = true) &&
+                    !step.easing.equals("CubicBezier", ignoreCase = true)
                 ) {
                     diagnostics += warning(
                         "UNKNOWN_EASING",

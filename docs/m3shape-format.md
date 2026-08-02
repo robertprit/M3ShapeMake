@@ -42,9 +42,11 @@ Each animation entry (`type: "animation_sequence"`) includes:
 
 Each step (`M3AnimationStepAsset`) stores:
 
-- timing: `durationMs`, `holdMs`, `easing` (enum name such as `EaseInOut`)
+- timing: `durationMs`, `holdMs`
+- Bézier timing profile: `bezierX1`, `bezierY1`, `bezierX2`, `bezierY2` (control points from (0,0) to (1,1); x clamped to 0..1, y may overshoot for bounce/anticipation)
+- named shortcut: `easing` (enum name such as `EaseInOut`, or `Custom` for custom curves)
 - enabled channels: `animations` (names such as `Morph`, `Rotate`, `Scale`, `Alpha`, `Colour`, `Position`)
-- spring parameters: `stiffness`, `damping`, `mass`, `reverse`
+- legacy fields: `stiffness`, `damping`, `mass`, `reverse`
 - range endpoints: `morphStart`/`morphEnd`, `rotateStart`/`rotateEnd`, `scaleStart`/`scaleEnd`, etc.
 - legacy display fields: `morphProgress`, `rotation`, `scale`, `alpha`, `wobble`, `bounce` (kept for schema compatibility)
 

@@ -44,10 +44,8 @@ fun generateComposeExport(
     shapeA: ShapeSource,
     shapeB: ShapeSource,
     enabledAnimations: Set<AnimationKind>,
-    stiffness: Float,
-    damping: Float,
-    mass: Float,
-    easing: StudioEasing,
+    durationMs: Int,
+    profile: BezierProfile,
     reverse: Boolean,
     morphRange: FloatRangeValue,
     rotateRange: FloatRangeValue,
@@ -69,11 +67,11 @@ fun generateComposeExport(
     val needsExpressive = shapeA is ShapeSource.Material || shapeB is ShapeSource.Material
     val needsCustomPolygon = shapeA is ShapeSource.Custom || shapeB is ShapeSource.Custom ||
         shapeA is ShapeSource.Drawn || shapeB is ShapeSource.Drawn
-    val durationMs = estimateDurationMs(stiffness, mass)
-    val k = "%.1f".format(java.util.Locale.US, stiffness)
-    val d = "%.2f".format(java.util.Locale.US, damping)
-    val m = "%.2f".format(java.util.Locale.US, mass)
-    val effectiveK = "%.1f".format(java.util.Locale.US, springStiffnessForMass(stiffness, mass))
+    val dur = durationMs.coerceAtLeast(1)
+    val bx1 = "%.2f".format(java.util.Locale.US, profile.x1.coerceIn(0f, 1f))
+    val by1 = "%.2f".format(java.util.Locale.US, profile.y1)
+    val bx2 = "%.2f".format(java.util.Locale.US, profile.x2.coerceIn(0f, 1f))
+    val by2 = "%.2f".format(java.util.Locale.US, profile.y2)
     fun f(v: Float) = "%.2f".format(java.util.Locale.US, v)
 
     fun targets(range: FloatRangeValue): Pair<String, String> {
@@ -108,18 +106,15 @@ fun generateComposeExport(
     }.joinToString("\n")
 
     val optIn = if (needsExpressive) "@OptIn(ExperimentalMaterial3ExpressiveApi::class)\n" else ""
-    val springSpec =
-        "spring(dampingRatio = ${d}f, stiffness = ${effectiveK}f)"
     val tweenSpec =
-        "tween($durationMs, easing = ${easing.composeRef})"
+        "tween($dur, easing = CubicBezierEasing(${bx1}f, ${by1}f, ${bx2}f, ${by2}f))"
 
-    fun loopBlock(label: String, from: String, to: String, useSpring: Boolean): String {
-        val spec = if (useSpring) springSpec else tweenSpec
+    fun loopBlock(label: String, from: String, to: String): String {
         return """
     val $label by animateFloatAsState(
         targetValue = if (playing) $to else $from,
         animationSpec = infiniteRepeatable(
-            animation = $spec,
+            animation = $tweenSpec,
             repeatMode = RepeatMode.Reverse
         ),
         label = "$label"
@@ -136,40 +131,33 @@ fun generateComposeExport(
 
     val animationBlocks = buildList {
         if (AnimationKind.Morph in enabledAnimations) {
-            add(loopBlock("morphProgress", morphFrom, morphTo, useSpring = false))
+            add(loopBlock("morphProgress", morphFrom, morphTo))
         } else {
             add("    val morphProgress = $morphFrom")
         }
         if (AnimationKind.Rotate in enabledAnimations) {
-            add(
-                """
-    val rotation by animateFloatAsState(
-        targetValue = if (playing) $rotateTo else $rotateFrom,
-        animationSpec = infiniteRepeatable(animation = $tweenSpec),
-        label = "rotation"
-    )""".trimIndent()
-            )
+            add(loopBlock("rotation", rotateFrom, rotateTo))
         } else {
             add("    val rotation = $rotateFrom")
         }
         if (AnimationKind.Scale in enabledAnimations) {
-            add(loopBlock("scale", scaleFrom, scaleTo, useSpring = true))
+            add(loopBlock("scale", scaleFrom, scaleTo))
         } else {
             add("    val scale = $scaleFrom")
         }
         if (AnimationKind.Alpha in enabledAnimations) {
-            add(loopBlock("alpha", alphaFrom, alphaTo, useSpring = true))
+            add(loopBlock("alpha", alphaFrom, alphaTo))
         } else {
             add("    val alpha = $alphaFrom")
         }
         if (AnimationKind.Colour in enabledAnimations) {
-            add(loopBlock("colorBlend", colorFrom, colorTo, useSpring = false))
+            add(loopBlock("colorBlend", colorFrom, colorTo))
         } else {
             add("    val colorBlend = $colorFrom")
         }
         if (AnimationKind.Position in enabledAnimations) {
-            add(loopBlock("offsetX", offsetXFrom, offsetXTo, useSpring = true))
-            add(loopBlock("offsetY", offsetYFrom, offsetYTo, useSpring = true))
+            add(loopBlock("offsetX", offsetXFrom, offsetXTo))
+            add(loopBlock("offsetY", offsetYFrom, offsetYTo))
         } else {
             add("    val offsetX = $offsetXFrom")
             add("    val offsetY = $offsetYFrom")
@@ -180,7 +168,7 @@ fun generateComposeExport(
     return """
 // M3ShapeMake Preview
 // $shapeALabel -> $shapeBLabel
-// Spring: stiffness=$k damping=$d mass=$m (k_eff=$effectiveK) · $dir · Easing: ${easing.label}
+// Timing: ${dur}ms · CubicBezier($bx1, $by1, $bx2, $by2) · $dir
 $imports
 
 ${optIn}@Composable
