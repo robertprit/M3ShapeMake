@@ -50,12 +50,7 @@ See [docs/m3shape-format.md](docs/m3shape-format.md) and [docs/examples/sample_b
 M3ShapeMake is intentionally not:
 
 - a full vector graphics editor
-- a Blockly clone
-- a Flowchart editor
 - a VisualTasker Studio plugin
-- a runtime automation engine
-- an EMScript generator
-- a cloud service
 
 ## Architecture Boundary
 
