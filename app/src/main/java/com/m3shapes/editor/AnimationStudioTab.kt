@@ -1,9 +1,7 @@
 package com.m3shapes.editor
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,60 +20,48 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.graphics.shapes.Morph
-import androidx.graphics.shapes.toPath
+import com.compose.canvas.asset.PreparedPathMorph
+import com.compose.canvas.geometry.PathGeometry
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun AnimationStudioTab(
-    morph: Morph,
-    morphProgress: Float,
-    canvasRotation: Float,
-    canvasScale: Float,
-    canvasAlpha: Float,
-    canvasOffsetX: Float,
-    canvasOffsetY: Float,
-    canvasFillColor: Color,
-    loopPlaying: Boolean,
-    onLoopPlayingChange: (Boolean) -> Unit,
+    morph: PreparedPathMorph?,
     durationMs: Int,
     onDurationMsChange: (Int) -> Unit,
     profile: BezierProfile,
     onProfileChange: (BezierProfile) -> Unit,
-    timelineManualProgress: Float,
-    onTimelineManualProgressChange: (Float) -> Unit,
+    motionPathType: MotionPathType,
+    onMotionPathTypeChange: (MotionPathType) -> Unit,
+    springStiffness: Float,
+    onSpringStiffnessChange: (Float) -> Unit,
+    springDamping: Float,
+    onSpringDampingChange: (Float) -> Unit,
+    bounceGravity: Float,
+    onBounceGravityChange: (Float) -> Unit,
     morphRange: FloatRangeValue,
     onMorphRangeChange: (FloatRangeValue) -> Unit,
     rotateRange: FloatRangeValue,
@@ -90,44 +76,20 @@ fun AnimationStudioTab(
     onOffsetXRangeChange: (FloatRangeValue) -> Unit,
     offsetYRange: FloatRangeValue,
     onOffsetYRangeChange: (FloatRangeValue) -> Unit,
+    staggerRange: FloatRangeValue,
+    onStaggerRangeChange: (FloatRangeValue) -> Unit,
+    strokeRange: FloatRangeValue,
+    onStrokeRangeChange: (FloatRangeValue) -> Unit,
+    blurRange: FloatRangeValue,
+    onBlurRangeChange: (FloatRangeValue) -> Unit,
+    gradientRange: FloatRangeValue,
+    onGradientRangeChange: (FloatRangeValue) -> Unit,
+    sourceColor: Color,
     animTargetColor: Color,
     onAnimTargetColorChange: (Color) -> Unit,
-    reverseAnimation: Boolean,
-    onReverseAnimationChange: (Boolean) -> Unit,
-    enabledAnimations: Set<AnimationKind>,
-    onEnabledAnimationsChange: (Set<AnimationKind>) -> Unit,
-    studioColors: List<Color>,
-    animationSteps: List<AnimationStep>,
-    selectedStepId: String?,
-    sequencePlaying: Boolean,
-    sequencerPlayheadMs: Int,
-    sequencerAddKind: AnimationKind,
-    onSequencerAddKindChange: (AnimationKind) -> Unit,
-    sequencerAddStartMs: Int,
-    onSequencerAddStartMsChange: (Int) -> Unit,
-    sequencerDirection: SequencerDirection,
-    onSequencerDirectionChange: (SequencerDirection) -> Unit,
-    sequencerPlayMode: SequencerPlayMode,
-    onSequencerPlayModeChange: (SequencerPlayMode) -> Unit,
-    onAddCurrentStep: () -> Unit,
-    onApplyStep: (AnimationStep) -> Unit,
-    onDuplicateStep: (AnimationStep) -> Unit,
-    onDeleteStep: (AnimationStep) -> Unit,
-    onUpdateStepTimeline: (AnimationStep) -> Unit,
-    onPlaySequence: () -> Unit,
-    onStopSequence: () -> Unit,
-    onClearSequence: () -> Unit,
-    assetNamespace: String,
-    onAssetNamespaceChange: (String) -> Unit,
-    assetBundleId: String,
-    onAssetBundleIdChange: (String) -> Unit,
-    assetStatusText: String,
-    onCopyBundleJson: () -> Unit,
-    onValidateBundle: () -> Unit,
-    onSaveLastBundle: () -> Unit,
-    onLoadLastBundle: () -> Unit,
-    onExportFile: () -> Unit,
-    onImportFile: () -> Unit
+    playbackMode: PlaybackMode,
+    onPlaybackModeChange: (PlaybackMode) -> Unit,
+    studioColors: List<Color>
 ) {
 
     Column(
@@ -138,40 +100,6 @@ fun AnimationStudioTab(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.White)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.size(200.dp)) {
-                val path = morph.toPath(progress = morphProgress).asComposePath()
-                val ms = size.width / 256f * canvasScale
-                translate(left = canvasOffsetX, top = canvasOffsetY) {
-                    rotate(
-                        canvasRotation,
-                        pivot = Offset(size.width / 2f, size.height / 2f)
-                    ) {
-                        scale(ms, ms, pivot = Offset.Zero) {
-                            drawPath(
-                                path,
-                                canvasFillColor.copy(alpha = canvasAlpha),
-                                style = Fill
-                            )
-                            drawPath(
-                                path,
-                                Color.Red.copy(alpha = 0.35f),
-                                style = Stroke(width = 1.5f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "Animation Studio",
@@ -179,14 +107,6 @@ fun AnimationStudioTab(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = {
-                if (sequencePlaying) onStopSequence() else onLoopPlayingChange(!loopPlaying)
-            }) {
-                Icon(
-                    if (loopPlaying || sequencePlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    "Preview Play/Pause"
-                )
-            }
             Text(
                 "${durationMs} ms",
                 style = MaterialTheme.typography.bodySmall,
@@ -194,7 +114,148 @@ fun AnimationStudioTab(
             )
         }
 
-        Text("Timing Profile", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        Text("Motion Path", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            MotionPathType.entries.forEach { mode ->
+                FilterChip(
+                    selected = mode == motionPathType,
+                    onClick = { onMotionPathTypeChange(mode) },
+                    label = { Text(mode.label, style = MaterialTheme.typography.labelSmall) }
+                )
+            }
+        }
+        when (motionPathType) {
+            MotionPathType.Tween -> {
+                Text(
+                    "Tween nutzt den Bezier-Pfad.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            MotionPathType.Spring -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Stiff", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = springStiffness,
+                        onValueChange = onSpringStiffnessChange,
+                        valueRange = 50f..2_000f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        springStiffness.roundToInt().toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.width(64.dp),
+                        textAlign = TextAlign.End
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Damp", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = springDamping,
+                        onValueChange = onSpringDampingChange,
+                        valueRange = 0.05f..2f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "%.2f".format(springDamping),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.width(64.dp),
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+            MotionPathType.Bounce -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Gravity", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
+                    Slider(
+                        value = bounceGravity,
+                        onValueChange = onBounceGravityChange,
+                        valueRange = 0.1f..3f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "%.2f".format(bounceGravity),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.width(64.dp),
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+        }
+        BezierCurveEditor(
+            profile = profile,
+            onProfileChange = onProfileChange,
+            motionPathType = motionPathType,
+            springStiffness = springStiffness,
+            springDamping = springDamping,
+            bounceGravity = bounceGravity,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+        )
+        if (motionPathType == MotionPathType.Tween) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                BezierCoordField(
+                    label = "x1",
+                    value = profile.x1,
+                    onChange = { onProfileChange(profile.copy(x1 = it.coerceIn(0f, 1f))) },
+                    modifier = Modifier.weight(1f)
+                )
+                BezierCoordField(
+                    label = "y1",
+                    value = profile.y1,
+                    onChange = { onProfileChange(profile.copy(y1 = it.coerceIn(-2f, 3f))) },
+                    modifier = Modifier.weight(1f)
+                )
+                BezierCoordField(
+                    label = "x2",
+                    value = profile.x2,
+                    onChange = { onProfileChange(profile.copy(x2 = it.coerceIn(0f, 1f))) },
+                    modifier = Modifier.weight(1f)
+                )
+                BezierCoordField(
+                    label = "y2",
+                    value = profile.y2,
+                    onChange = { onProfileChange(profile.copy(y2 = it.coerceIn(-2f, 3f))) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Text("Presets", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                StudioEasing.entries.forEach { preset ->
+                    val selected = profile.matches(preset.profile())
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onProfileChange(preset.profile()) },
+                        label = { Text(preset.label, style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
+            }
+        }
+        Text("Wiedergabe", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            PlaybackMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = mode == playbackMode,
+                    onClick = { onPlaybackModeChange(mode) },
+                    label = { Text(mode.label, style = MaterialTheme.typography.labelSmall) }
+                )
+            }
+        }
+        Text(
+            when (playbackMode) {
+                PlaybackMode.Normal -> "Start → Ende"
+                PlaybackMode.Reverse -> "Ende → Start"
+                PlaybackMode.PingPong -> "Start → Ende → Start"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Text("Animation", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Duration", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(72.dp))
             Slider(
@@ -210,211 +271,288 @@ fun AnimationStudioTab(
                 textAlign = TextAlign.End
             )
         }
-        BezierCurveEditor(
-            profile = profile,
-            onProfileChange = onProfileChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-        )
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            BezierCoordField(
-                label = "x1",
-                value = profile.x1,
-                onChange = { onProfileChange(profile.copy(x1 = it.coerceIn(0f, 1f))) },
-                modifier = Modifier.weight(1f)
-            )
-            BezierCoordField(
-                label = "y1",
-                value = profile.y1,
-                onChange = { onProfileChange(profile.copy(y1 = it.coerceIn(0f, 1f))) },
-                modifier = Modifier.weight(1f)
-            )
-            BezierCoordField(
-                label = "x2",
-                value = profile.x2,
-                onChange = { onProfileChange(profile.copy(x2 = it.coerceIn(0f, 1f))) },
-                modifier = Modifier.weight(1f)
-            )
-            BezierCoordField(
-                label = "y2",
-                value = profile.y2,
-                onChange = { onProfileChange(profile.copy(y2 = it.coerceIn(0f, 1f))) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Text("Presets", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            StudioEasing.entries.forEach { preset ->
-                val selected = profile.matches(preset.profile())
-                FilterChip(
-                    selected = selected,
-                    onClick = { onProfileChange(preset.profile()) },
-                    label = { Text(preset.label, style = MaterialTheme.typography.labelSmall) }
+        ParamRangeSlider(
+            label = "Morph",
+            value = morphRange,
+            onValueChange = onMorphRangeChange,
+            valueRange = 0f..1f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Morph,
+                    morph = morph,
+                    range = morphRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
                 )
             }
-        }
+        )
+        ParamRangeSlider(
+            label = "Spin",
+            value = rotateRange,
+            onValueChange = onRotateRangeChange,
+            valueRange = 0f..360f,
+            format = { "${it.roundToInt()}°" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Rotate,
+                    morph = morph,
+                    range = rotateRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Size",
+            value = scaleRange,
+            onValueChange = onScaleRangeChange,
+            valueRange = 0.5f..2f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Scale,
+                    morph = morph,
+                    range = scaleRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Fade",
+            value = alphaRange,
+            onValueChange = onAlphaRangeChange,
+            valueRange = 0.05f..1f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Alpha,
+                    morph = morph,
+                    range = alphaRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Move X",
+            value = offsetXRange,
+            onValueChange = onOffsetXRangeChange,
+            valueRange = -80f..80f,
+            format = { it.roundToInt().toString() },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.OffsetX,
+                    morph = morph,
+                    range = offsetXRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Move Y",
+            value = offsetYRange,
+            onValueChange = onOffsetYRangeChange,
+            valueRange = -80f..80f,
+            format = { it.roundToInt().toString() },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.OffsetY,
+                    morph = morph,
+                    range = offsetYRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Blend",
+            value = colorRange,
+            onValueChange = onColorRangeChange,
+            valueRange = 0f..1f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Colour,
+                    morph = morph,
+                    range = colorRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Stagger",
+            value = staggerRange,
+            onValueChange = onStaggerRangeChange,
+            valueRange = 0f..0.85f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Stagger,
+                    morph = morph,
+                    range = staggerRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Stroke",
+            value = strokeRange,
+            onValueChange = onStrokeRangeChange,
+            valueRange = 0f..1f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Stroke,
+                    morph = morph,
+                    range = strokeRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Blur",
+            value = blurRange,
+            onValueChange = onBlurRangeChange,
+            valueRange = 0f..24f,
+            format = { "${it.roundToInt()} dp" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Blur,
+                    morph = morph,
+                    range = blurRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        ParamRangeSlider(
+            label = "Gradient",
+            value = gradientRange,
+            onValueChange = onGradientRangeChange,
+            valueRange = 0f..1f,
+            format = { "${(it * 100).roundToInt()}%" },
+            preview = {
+                IsolatedAnimationPreview(
+                    kind = IsolatedPreviewKind.Gradient,
+                    morph = morph,
+                    range = gradientRange,
+                    durationMs = durationMs,
+                    profile = profile,
+                    motionPathType = motionPathType,
+                    springStiffness = springStiffness,
+                    springDamping = springDamping,
+                    bounceGravity = bounceGravity,
+                    playbackMode = playbackMode,
+                    sourceColor = sourceColor,
+                    targetColor = animTargetColor
+                )
+            }
+        )
+        Text(
+            "Ziel-Farbe",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(rememberScrollState())
         ) {
-            Checkbox(
-                checked = reverseAnimation,
-                onCheckedChange = onReverseAnimationChange
-            )
-            Text("Reverse", style = MaterialTheme.typography.bodySmall)
-            Text(
-                if (reverseAnimation) "Ende → Start" else "Start → Ende",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Text("Animation", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            AnimationKind.entries.forEach { kind ->
-                FilterChip(
-                    selected = kind in enabledAnimations,
-                    onClick = {
-                        onEnabledAnimationsChange(
-                            if (kind in enabledAnimations) enabledAnimations - kind
-                            else enabledAnimations + kind
+            studioColors.forEach { color ->
+                val selected = color == animTargetColor
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .border(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant,
+                            shape = CircleShape
                         )
-                    },
-                    label = { Text(kind.label, style = MaterialTheme.typography.labelSmall) }
+                        .pointerInput(color) {
+                            detectTapGestures { onAnimTargetColorChange(color) }
+                        }
                 )
             }
         }
 
-        if (AnimationKind.Morph in enabledAnimations) {
-            ParamRangeSlider(
-                label = "Morph",
-                value = morphRange,
-                onValueChange = onMorphRangeChange,
-                valueRange = 0f..1f,
-                format = { "${(it * 100).roundToInt()}%" }
-            )
-        }
-        if (AnimationKind.Rotate in enabledAnimations) {
-            ParamRangeSlider(
-                label = "Rotate",
-                value = rotateRange,
-                onValueChange = onRotateRangeChange,
-                valueRange = 0f..360f,
-                format = { "${it.roundToInt()}°" }
-            )
-        }
-        if (AnimationKind.Scale in enabledAnimations) {
-            ParamRangeSlider(
-                label = "Scale",
-                value = scaleRange,
-                onValueChange = onScaleRangeChange,
-                valueRange = 0.5f..2f,
-                format = { "${(it * 100).roundToInt()}%" }
-            )
-        }
-        if (AnimationKind.Alpha in enabledAnimations) {
-            ParamRangeSlider(
-                label = "Alpha",
-                value = alphaRange,
-                onValueChange = onAlphaRangeChange,
-                valueRange = 0.05f..1f,
-                format = { "${(it * 100).roundToInt()}%" }
-            )
-        }
-        if (AnimationKind.Colour in enabledAnimations) {
-            ParamRangeSlider(
-                label = "Blend",
-                value = colorRange,
-                onValueChange = onColorRangeChange,
-                valueRange = 0f..1f,
-                format = { "${(it * 100).roundToInt()}%" }
-            )
-            Text(
-                "Ziel-Farbe",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.horizontalScroll(rememberScrollState())
-            ) {
-                studioColors.forEach { color ->
-                    val selected = color == animTargetColor
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .border(
-                                width = if (selected) 2.dp else 1.dp,
-                                color = if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outlineVariant,
-                                shape = CircleShape
-                            )
-                            .pointerInput(color) {
-                                detectTapGestures { onAnimTargetColorChange(color) }
-                            }
-                    )
-                }
-            }
-        }
-        if (AnimationKind.Position in enabledAnimations) {
-            ParamRangeSlider(
-                label = "Pos X",
-                value = offsetXRange,
-                onValueChange = onOffsetXRangeChange,
-                valueRange = -80f..80f,
-                format = { it.roundToInt().toString() }
-            )
-            ParamRangeSlider(
-                label = "Pos Y",
-                value = offsetYRange,
-                onValueChange = onOffsetYRangeChange,
-                valueRange = -80f..80f,
-                format = { it.roundToInt().toString() }
-            )
-        }
-
-        AnimationSequencerPanel(
-            steps = animationSteps,
-            selectedStepId = selectedStepId,
-            sequencePlaying = sequencePlaying,
-            playheadMs = sequencerPlayheadMs,
-            addKind = sequencerAddKind,
-            onAddKindChange = onSequencerAddKindChange,
-            addStartMs = sequencerAddStartMs,
-            onAddStartMsChange = onSequencerAddStartMsChange,
-            direction = sequencerDirection,
-            onDirectionChange = onSequencerDirectionChange,
-            playMode = sequencerPlayMode,
-            onPlayModeChange = onSequencerPlayModeChange,
-            onAddCurrent = onAddCurrentStep,
-            onApply = onApplyStep,
-            onDuplicate = onDuplicateStep,
-            onDelete = onDeleteStep,
-            onUpdateTimeline = onUpdateStepTimeline,
-            onPlaySequence = onPlaySequence,
-            onStopSequence = onStopSequence,
-            onClearSequence = onClearSequence
-        )
-
-        M3ShapeExportPanel(
-            namespace = assetNamespace,
-            onNamespaceChange = onAssetNamespaceChange,
-            bundleId = assetBundleId,
-            onBundleIdChange = onAssetBundleIdChange,
-            statusText = assetStatusText,
-            onCopyJson = onCopyBundleJson,
-            onValidate = onValidateBundle,
-            onSaveLast = onSaveLastBundle,
-            onLoadLast = onLoadLastBundle,
-            onExportFile = onExportFile,
-            onImportFile = onImportFile
-        )
     }
 }
 
@@ -425,25 +563,139 @@ private fun ParamRangeSlider(
     value: FloatRangeValue,
     onValueChange: (FloatRangeValue) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
-    format: (Float) -> String
+    format: (Float) -> String,
+    preview: @Composable () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(52.dp))
-            Text(
-                "${format(value.start)} → ${format(value.end)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.End
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(52.dp))
+                Text(
+                    "${format(value.start)} → ${format(value.end)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End
+                )
+            }
+            RangeSlider(
+                value = value.closed,
+                onValueChange = { onValueChange(FloatRangeValue(it.start, it.endInclusive)) },
+                valueRange = valueRange,
+                modifier = Modifier.fillMaxWidth()
             )
         }
-        RangeSlider(
-            value = value.closed,
-            onValueChange = { onValueChange(FloatRangeValue(it.start, it.endInclusive)) },
-            valueRange = valueRange,
-            modifier = Modifier.fillMaxWidth()
-        )
+        preview()
     }
 }
 
+private enum class IsolatedPreviewKind {
+    Morph, Rotate, Scale, Alpha, Colour, OffsetX, OffsetY, Stagger, Stroke, Blur, Gradient
+}
+
+@Composable
+private fun IsolatedAnimationPreview(
+    kind: IsolatedPreviewKind,
+    morph: PreparedPathMorph?,
+    range: FloatRangeValue,
+    durationMs: Int,
+    profile: BezierProfile,
+    motionPathType: MotionPathType,
+    springStiffness: Float,
+    springDamping: Float,
+    bounceGravity: Float,
+    playbackMode: PlaybackMode,
+    sourceColor: Color,
+    targetColor: Color
+) {
+    var raw by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(durationMs, playbackMode) {
+        val startNanos = withFrameNanos { it }
+        while (true) {
+            val now = withFrameNanos { it }
+            val elapsedMs = (now - startNanos) / 1_000_000L
+            raw = playbackMode.timelinePhase(elapsedMs, durationMs)
+        }
+    }
+    val eased = motionProgress(
+        raw = raw,
+        type = motionPathType,
+        profile = profile,
+        springStiffness = springStiffness,
+        springDamping = springDamping,
+        bounceGravity = bounceGravity
+    )
+    val t = playbackMode.applyDirection(eased)
+    val animated = range.start + (range.end - range.start) * t
+    val restPath = morph?.start ?: PathGeometry(emptyList())
+    val path = when {
+        kind == IsolatedPreviewKind.Morph && morph != null ->
+            morph.pathAt(animated.coerceIn(0f, 1f))
+        kind == IsolatedPreviewKind.Stagger && morph != null ->
+            morph.pathAt(t.coerceIn(0f, 1f), animated.coerceIn(0f, 0.95f))
+        else -> restPath
+    }
+    val staggerReferencePath = if (kind == IsolatedPreviewKind.Stagger && morph != null) {
+        morph.pathAt(t.coerceIn(0f, 1f), 0f)
+    } else {
+        null
+    }
+    Box(
+        modifier = Modifier
+            .size(76.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (staggerReferencePath != null) {
+            ShapePreviewCanvas(
+                path = staggerReferencePath,
+                alpha = 0.2f,
+                fillColor = sourceColor,
+                fillVisible = false,
+                modifier = Modifier.size(68.dp)
+            )
+        }
+        ShapePreviewCanvas(
+            path = path,
+            rotation = if (kind == IsolatedPreviewKind.Rotate) animated else 0f,
+            scale = if (kind == IsolatedPreviewKind.Scale) animated else 1f,
+            alpha = if (kind == IsolatedPreviewKind.Alpha) animated else 1f,
+            offsetX = if (kind == IsolatedPreviewKind.OffsetX) animated else 0f,
+            offsetY = if (kind == IsolatedPreviewKind.OffsetY) animated else 0f,
+            fillColor = if (kind == IsolatedPreviewKind.Colour) {
+                lerp(sourceColor, targetColor, animated.coerceIn(0f, 1f))
+            } else {
+                sourceColor
+            },
+            strokeProgress = if (kind == IsolatedPreviewKind.Stroke) animated else 0f,
+            blurRadius = if (kind == IsolatedPreviewKind.Blur) animated else 0f,
+            gradientProgress = when (kind) {
+                IsolatedPreviewKind.Gradient -> animated.coerceIn(0.02f, 1f)
+                else -> 0f
+            },
+            gradientEndColor = targetColor,
+            fillVisible = kind != IsolatedPreviewKind.Stroke,
+            modifier = Modifier.size(68.dp)
+        )
+        if (kind == IsolatedPreviewKind.Stagger) {
+            Text(
+                text = "${(animated.coerceIn(0f, 0.95f) * 100).roundToInt()}%",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 4.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            )
+        }
+    }
+}

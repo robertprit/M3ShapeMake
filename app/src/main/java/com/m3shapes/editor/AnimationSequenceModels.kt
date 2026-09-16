@@ -34,9 +34,9 @@ data class BezierProfile(
 
     fun clamped(): BezierProfile = BezierProfile(
         x1 = x1.coerceIn(0f, 1f),
-        y1 = y1.coerceIn(-1f, 2f),
+        y1 = y1.coerceIn(-2f, 3f),
         x2 = x2.coerceIn(0f, 1f),
-        y2 = y2.coerceIn(-1f, 2f)
+        y2 = y2.coerceIn(-2f, 3f)
     )
 
     fun matches(other: BezierProfile, epsilon: Float = 0.005f): Boolean =
@@ -81,8 +81,44 @@ data class AnimationStep(
     val colorRange: FloatRangeValue,
     val offsetXRange: FloatRangeValue,
     val offsetYRange: FloatRangeValue,
+    val staggerRange: FloatRangeValue = FloatRangeValue(0f, 0.65f),
+    val strokeRange: FloatRangeValue = FloatRangeValue(0f, 1f),
+    val blurRange: FloatRangeValue = FloatRangeValue(0f, 16f),
+    val gradientRange: FloatRangeValue = FloatRangeValue(0f, 1f),
+    val motionPath: MotionPathType = MotionPathType.Tween,
+    val springStiffness: Float = 400f,
+    val springDamping: Float = 0.75f,
+    val bounceGravity: Float = 1f,
     val holdMs: Int = 0
 )
+
+enum class MotionPathType(val label: String) {
+    Tween("Tween"),
+    Spring("Spring"),
+    Bounce("Bounce")
+}
+
+enum class PlaybackMode(val label: String) {
+    Normal("Normal"),
+    Reverse("Reverse"),
+    PingPong("PingPong");
+
+    val reverse: Boolean get() = this == Reverse
+}
+
+fun PlaybackMode.timelinePhase(elapsedMs: Long, durationMs: Int): Float {
+    val oneWay = durationMs.coerceAtLeast(200)
+    val period = if (this == PlaybackMode.PingPong) oneWay * 2L else oneWay.toLong()
+    val cycle = (elapsedMs % period).coerceAtLeast(0L)
+    val phase = cycle / oneWay.toFloat()
+    return when (this) {
+        PlaybackMode.Normal, PlaybackMode.Reverse -> phase
+        PlaybackMode.PingPong -> if (phase <= 1f) phase else 2f - phase
+    }.coerceIn(0f, 1f)
+}
+
+fun PlaybackMode.applyDirection(progress: Float): Float =
+    if (this == PlaybackMode.Reverse) 1f - progress else progress
 
 enum class SequencerDirection(val label: String) {
     Forward("Vorwaerts"),
@@ -116,6 +152,14 @@ fun createAnimationStepFromCurrentConfig(
     colorRange: FloatRangeValue,
     offsetXRange: FloatRangeValue,
     offsetYRange: FloatRangeValue,
+    staggerRange: FloatRangeValue,
+    strokeRange: FloatRangeValue,
+    blurRange: FloatRangeValue,
+    gradientRange: FloatRangeValue,
+    motionPath: MotionPathType,
+    springStiffness: Float,
+    springDamping: Float,
+    bounceGravity: Float,
     holdMs: Int = 0
 ): AnimationStep = AnimationStep(
     id = "step_$stepNumber",
@@ -133,6 +177,14 @@ fun createAnimationStepFromCurrentConfig(
     colorRange = colorRange.coerced(0f..1f),
     offsetXRange = offsetXRange.coerced(-80f..80f),
     offsetYRange = offsetYRange.coerced(-80f..80f),
+    staggerRange = staggerRange.coerced(0f..0.85f),
+    strokeRange = strokeRange.coerced(0f..1f),
+    blurRange = blurRange.coerced(0f..24f),
+    gradientRange = gradientRange.coerced(0f..1f),
+    motionPath = motionPath,
+    springStiffness = springStiffness.coerceIn(50f, 2_000f),
+    springDamping = springDamping.coerceIn(0.05f, 2f),
+    bounceGravity = bounceGravity.coerceIn(0.1f, 3f),
     holdMs = holdMs.coerceAtLeast(0)
 )
 
@@ -141,7 +193,7 @@ fun AnimationStep.summary(): String {
     val dir = if (reverse) "rev" else "fwd"
     val profileLabel = StudioEasing.entries.firstOrNull { it.profile().matches(profile) }?.label
         ?: "Custom"
-    return "$name · $animLabel · ${startMs}..${endMs}ms · $profileLabel · $dir"
+    return "$name · $animLabel · ${startMs}..${endMs}ms · ${motionPath.label} · $profileLabel · $dir"
 }
 
 fun AnimationStep.duplicated(newId: String, newName: String): AnimationStep =

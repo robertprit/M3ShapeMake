@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
                 )
             ) {
                 Surface(Modifier.fillMaxSize()) {
-                    M3ShapeMakeApp()
+                    VisualAssetStudioApp()
                 }
             }
         }

@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "M3ShapeMake"
 include(":app")
+include(":design-editor")
+include(":runtime-sample")

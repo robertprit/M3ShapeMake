@@ -32,7 +32,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 private enum class BezierHandle { P1, P2 }
-private const val BEZIER_EDITOR_PADDING_PX = 20f
+private const val BEZIER_EDITOR_PADDING_PX = 30f
+private const val CURVE_Y_MIN = -1.2f
+private const val CURVE_Y_MAX = 2.2f
 
 /**
  * Editable cubic-Bézier easing curve. The box maps time (x) and progress (y) to 0..1;
@@ -42,6 +44,10 @@ private const val BEZIER_EDITOR_PADDING_PX = 20f
 fun BezierCurveEditor(
     profile: BezierProfile,
     onProfileChange: (BezierProfile) -> Unit,
+    motionPathType: MotionPathType = MotionPathType.Tween,
+    springStiffness: Float = 400f,
+    springDamping: Float = 0.75f,
+    bounceGravity: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
@@ -57,6 +63,7 @@ fun BezierCurveEditor(
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { pos ->
+                        if (motionPathType != MotionPathType.Tween) return@detectDragGestures
                         val nx = toNormalizedX(pos.x, size.width.toFloat())
                         val ny = toNormalizedY(pos.y, size.height.toFloat())
                         val d1 = kotlin.math.abs(nx - currentProfile.x1) + kotlin.math.abs(ny - currentProfile.y1)
@@ -64,6 +71,7 @@ fun BezierCurveEditor(
                         activeHandle = if (d1 <= d2) BezierHandle.P1 else BezierHandle.P2
                     },
                     onDrag = { change, _ ->
+                        if (motionPathType != MotionPathType.Tween) return@detectDragGestures
                         change.consume()
                         val nx = toNormalizedX(change.position.x, size.width.toFloat())
                         val ny = toNormalizedY(change.position.y, size.height.toFloat())
@@ -89,6 +97,8 @@ fun BezierCurveEditor(
         val plotH = (bottom - top).coerceAtLeast(1f)
         val gridColor = onSurfaceVariant.copy(alpha = 0.15f)
         val axisColor = onSurfaceVariant.copy(alpha = 0.4f)
+        val yZero = mapY(0f, top, plotH)
+        val yOne = mapY(1f, top, plotH)
 
         // Bounding box and grid
         for (f in 1..3) {
@@ -107,41 +117,55 @@ fun BezierCurveEditor(
         // Linear reference
         drawLine(
             axisColor,
-            Offset(left, bottom),
-            Offset(right, top),
+            Offset(left, yZero),
+            Offset(right, yOne),
             strokeWidth = 1.5f
         )
 
-        // Control polygon
+        // Control polygon (Tween only)
         val p1 = Offset(
             x = left + profile.x1.coerceIn(0f, 1f) * plotW,
-            y = (bottom - profile.y1 * plotH).coerceIn(top, bottom)
+            y = mapY(profile.y1, top, plotH)
         )
         val p2 = Offset(
             x = left + profile.x2.coerceIn(0f, 1f) * plotW,
-            y = (bottom - profile.y2 * plotH).coerceIn(top, bottom)
+            y = mapY(profile.y2, top, plotH)
         )
-        drawLine(
-            primary.copy(alpha = 0.5f),
-            Offset(left, bottom),
-            p1,
-            strokeWidth = 1.5f
-        )
-        drawLine(
-            primary.copy(alpha = 0.5f),
-            Offset(right, top),
-            p2,
-            strokeWidth = 1.5f
-        )
+        if (motionPathType == MotionPathType.Tween) {
+            drawLine(
+                primary.copy(alpha = 0.5f),
+                Offset(left, yZero),
+                p1,
+                strokeWidth = 1.5f
+            )
+            drawLine(
+                primary.copy(alpha = 0.5f),
+                Offset(right, yOne),
+                p2,
+                strokeWidth = 1.5f
+            )
+        }
 
         // Curve
         val path = Path()
         val samples = 64
-        path.moveTo(left, bottom)
+        path.moveTo(left, mapY(0f, top, plotH))
         for (i in 1..samples) {
             val t = i.toFloat() / samples
-            val x = left + profile.curveX(t).coerceIn(0f, 1f) * plotW
-            val y = (bottom - profile.curveY(t) * plotH).coerceIn(top, bottom)
+            val yValue = when (motionPathType) {
+                MotionPathType.Tween -> profile.curveY(t)
+                MotionPathType.Spring -> {
+                    val damping = springDamping.coerceIn(0.05f, 2f)
+                    val stiff = springStiffness.coerceIn(50f, 2_000f)
+                    val frequency = (stiff / 450f).coerceIn(0.25f, 5f)
+                    val decay = (damping * 3.2f).coerceIn(0.2f, 6f)
+                    1f - (kotlin.math.exp((-decay * t).toDouble()).toFloat() *
+                        kotlin.math.cos(t * frequency * Math.PI.toFloat() * 2f))
+                }
+                MotionPathType.Bounce -> gravityBounceEasing(bounceGravity).transform(t)
+            }
+            val x = left + t * plotW
+            val y = mapY(yValue, top, plotH)
             path.lineTo(x, y)
         }
         drawPath(
@@ -151,14 +175,16 @@ fun BezierCurveEditor(
         )
 
         // Endpoints
-        drawCircle(primary.copy(alpha = 0.85f), radius = 6f, center = Offset(left, bottom))
-        drawCircle(primary.copy(alpha = 0.85f), radius = 6f, center = Offset(right, top))
+        drawCircle(primary.copy(alpha = 0.85f), radius = 6f, center = Offset(left, yZero))
+        drawCircle(primary.copy(alpha = 0.85f), radius = 6f, center = Offset(right, yOne))
 
-        // Handles
-        drawCircle(Color.White, radius = 10f, center = p1)
-        drawCircle(primary, radius = 7f, center = p1)
-        drawCircle(Color.White, radius = 10f, center = p2)
-        drawCircle(primary, radius = 7f, center = p2)
+        // Handles (Tween only)
+        if (motionPathType == MotionPathType.Tween) {
+            drawCircle(Color.White, radius = 10f, center = p1)
+            drawCircle(primary, radius = 7f, center = p1)
+            drawCircle(Color.White, radius = 10f, center = p2)
+            drawCircle(primary, radius = 7f, center = p2)
+        }
     }
 }
 
@@ -173,14 +199,18 @@ private fun toNormalizedY(py: Float, height: Float): Float {
     val top = BEZIER_EDITOR_PADDING_PX
     val bottom = height - BEZIER_EDITOR_PADDING_PX
     val plotH = (bottom - top).coerceAtLeast(1f)
-    val yNorm = (1f - ((py - top) / plotH)).coerceIn(0f, 1f)
-    return yNorm
+    return (CURVE_Y_MAX - (((py - top) / plotH) * (CURVE_Y_MAX - CURVE_Y_MIN)))
+        .coerceIn(CURVE_Y_MIN, CURVE_Y_MAX)
 }
 
 /** Tiny static curve preview used in the sequencer step list. */
 @Composable
 fun BezierMiniPreview(
     profile: BezierProfile,
+    motionPathType: MotionPathType = MotionPathType.Tween,
+    springStiffness: Float = 400f,
+    springDamping: Float = 0.75f,
+    bounceGravity: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
@@ -196,10 +226,22 @@ fun BezierMiniPreview(
         )
         val path = Path()
         val samples = 32
-        path.moveTo(0f, h)
+        path.moveTo(0f, miniMapY(0f, h))
         for (i in 1..samples) {
             val t = i.toFloat() / samples
-            path.lineTo(profile.curveX(t) * w, (1f - profile.curveY(t)) * h)
+            val yValue = when (motionPathType) {
+                MotionPathType.Tween -> profile.curveY(t)
+                MotionPathType.Spring -> {
+                    val damping = springDamping.coerceIn(0.05f, 2f)
+                    val stiff = springStiffness.coerceIn(50f, 2_000f)
+                    val frequency = (stiff / 450f).coerceIn(0.25f, 5f)
+                    val decay = (damping * 3.2f).coerceIn(0.2f, 6f)
+                    1f - (kotlin.math.exp((-decay * t).toDouble()).toFloat() *
+                        kotlin.math.cos(t * frequency * Math.PI.toFloat() * 2f))
+                }
+                MotionPathType.Bounce -> gravityBounceEasing(bounceGravity).transform(t)
+            }
+            path.lineTo(t * w, miniMapY(yValue, h))
         }
         drawPath(path, primary, style = Stroke(width = 2f))
     }
@@ -251,3 +293,13 @@ fun BezierCoordField(
 }
 
 private fun formatBezierValue(v: Float): String = "%.2f".format(java.util.Locale.US, v)
+
+private fun mapY(value: Float, top: Float, plotH: Float): Float {
+    val norm = (CURVE_Y_MAX - value) / (CURVE_Y_MAX - CURVE_Y_MIN)
+    return top + norm * plotH
+}
+
+private fun miniMapY(value: Float, height: Float): Float {
+    val norm = (CURVE_Y_MAX - value) / (CURVE_Y_MAX - CURVE_Y_MIN)
+    return norm * height
+}

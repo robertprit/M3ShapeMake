@@ -42,50 +42,17 @@ enum class ExpressiveShapeId(val label: String, val composeRef: String) {
     }
 }
 
-data class FormConfig(
-    val numVertices: Int = 4,
-    val rounding: Float = 0.5f,
-    val smoothing: Float = 0f
-)
-
-data class VertexPoint(
-    val x: Float,
-    val y: Float
-)
-
-data class VertexCornerConfig(
-    val vertexId: String,
-    val rounding: Float = 0f,
-    val smoothing: Float = 0f,
-    val locked: Boolean = false
-)
-
-data class DrawnPolygonConfig(
-    val vertices: List<VertexPoint> = emptyList(),
-    val rounding: Float = 0f,
-    val smoothing: Float = 0f,
-    val perVertexRounding: List<VertexCornerConfig> = emptyList()
-)
-
-enum class ShapeMode {
-    Material,
-    Parametric,
-    Editor
-}
-
-sealed class ShapeSource {
-    data class Material(val shapeId: ExpressiveShapeId) : ShapeSource()
-    data class Custom(val config: FormConfig) : ShapeSource()
-    data class Drawn(val config: DrawnPolygonConfig) : ShapeSource()
-}
-
 enum class AnimationKind(val label: String) {
     Morph("Morph"),
-    Rotate("Rotate"),
-    Scale("Scale"),
-    Alpha("Alpha"),
-    Colour("Colour"),
-    Position("Position")
+    Rotate("Spin"),
+    Scale("Size"),
+    Alpha("Fade"),
+    Colour("Blend"),
+    Position("Move"),
+    Stagger("Stagger"),
+    Stroke("Stroke"),
+    Blur("Blur"),
+    Gradient("Gradient")
 }
 
 /** Named Bézier easing presets used as shortcuts to fill a [BezierProfile]. */
