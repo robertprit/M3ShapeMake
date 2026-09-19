@@ -12,8 +12,10 @@ enum class VisualAssetType {
     ANIMATED_SHAPE,
     BLOCK_SHAPE,
     NODE_SHAPE,
+    PORT_SHAPE,
     ICON,
     VISUAL_COMPONENT,
+    OVERLAY_SHAPE,
     ACTOR
 }
 

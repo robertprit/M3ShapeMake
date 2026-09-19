@@ -109,6 +109,18 @@ class EmaCodecTest {
     }
 
     @Test
+    fun bridgeSpecificAssetTypesRoundtrip() {
+        listOf(VisualAssetType.PORT_SHAPE, VisualAssetType.OVERLAY_SHAPE).forEach { type ->
+            val source = newVisualAsset("asset-${type.name.lowercase()}", type.name, document(type.name))
+                .let { it.copy(identity = it.identity.copy(type = type)) }
+
+            val decoded = EmaCodec.decode(EmaCodec.encode(source))
+
+            assertEquals(type, decoded.identity.type)
+        }
+    }
+
+    @Test
     fun validationRejectsBrokenTransitionAndSequenceReferences() {
         val document = document("Start")
         val asset = VisualAsset(

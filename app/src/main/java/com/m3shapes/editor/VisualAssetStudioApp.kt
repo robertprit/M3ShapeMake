@@ -63,6 +63,7 @@ import com.compose.canvas.asset.ShapeMakerSequence
 import com.compose.canvas.asset.ShapeMakerTransition
 import com.compose.canvas.asset.VisualAsset
 import com.compose.canvas.asset.VisualAssetIdentity
+import com.compose.canvas.asset.VisualAssetType
 import com.compose.canvas.asset.newVisualAsset
 import com.compose.canvas.editor.EditorState
 import com.compose.canvas.geometry.PathGeometry
@@ -74,7 +75,10 @@ private const val LAST_EMA_FILE = "last_asset.ema"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VisualAssetStudioApp() {
+fun VisualAssetStudioApp(
+    requestedAssetType: VisualAssetType? = null,
+    onReturnAsset: ((VisualAsset) -> Unit)? = null,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val initialDocument = remember { materialPresetDocument(ExpressiveShapeId.Square) }
@@ -85,7 +89,11 @@ fun VisualAssetStudioApp() {
                 assetId = "shape-1",
                 name = "Material Shape",
                 document = initialDocument
-            )
+            ).let { initialAsset ->
+                requestedAssetType?.let { type ->
+                    initialAsset.copy(identity = initialAsset.identity.copy(type = type))
+                } ?: initialAsset
+            }
         )
     }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -513,6 +521,11 @@ fun VisualAssetStudioApp() {
                             pendingExport = EmaCodec.encode(currentAsset())
                             exportLauncher.launch("${asset.identity.assetId}.$EMA_FILE_EXTENSION")
                         }) { Text(".ema Export") }
+                        onReturnAsset?.let { returnAsset ->
+                            Button(onClick = { returnAsset(currentAsset()) }) {
+                                Text("An VisualTasker übergeben")
+                            }
+                        }
                         OutlinedButton(onClick = {
                             importLauncher.launch(arrayOf(EMA_MIME_TYPE, "application/json", "*/*"))
                         }) { Text(".ema Import") }

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1960" viewBox="0 0 1280 1960" role="img" aria-labelledby="title desc">
+  <title id="title">M3ShapeMake - Animation Studio Tab Layout</title>
+  <desc id="desc">Wireframe des aktuellen Bildschirmaufbaus des Animation Studio Tabs in der Android Compose App.</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #f5f6fb; }
+      .panel { fill: #ffffff; stroke: #7f8899; stroke-width: 2; rx: 18; ry: 18; }
+      .sub { fill: #f9fbff; stroke: #9aa4b8; stroke-width: 1.5; rx: 12; ry: 12; }
+      .chip { fill: #eef2ff; stroke: #9fb2ff; stroke-width: 1.2; rx: 10; ry: 10; }
+      .button { fill: #f3f5f9; stroke: #95a0b3; stroke-width: 1.2; rx: 10; ry: 10; }
+      .optional { fill: #ffffff; stroke: #9aa4b8; stroke-width: 1.5; stroke-dasharray: 8 6; rx: 12; ry: 12; }
+      .title { font: 700 24px 'Inter', 'Segoe UI', sans-serif; fill: #1f2430; }
+      .h2 { font: 700 20px 'Inter', 'Segoe UI', sans-serif; fill: #222a38; }
+      .txt { font: 500 16px 'Inter', 'Segoe UI', sans-serif; fill: #2e3748; }
+      .small { font: 500 14px 'Inter', 'Segoe UI', sans-serif; fill: #4f5b71; }
+      .tiny { font: 500 13px 'Inter', 'Segoe UI', sans-serif; fill: #5d6980; }
+      .center { text-anchor: middle; dominant-baseline: middle; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1280" height="1960"/>
+
+  <!-- App Bar -->
+  <rect class="panel" x="30" y="24" width="1220" height="96"/>
+  <text class="title" x="60" y="68">M3ShapeMake</text>
+  <text class="small" x="60" y="98">Shape Editor · Native SVG Editor · Animation Studio</text>
+
+  <!-- Tab Row -->
+  <rect class="panel" x="30" y="132" width="1220" height="74"/>
+  <rect class="button" x="52" y="148" width="210" height="42"/>
+  <rect class="button" x="274" y="148" width="210" height="42"/>
+  <rect class="chip" x="496" y="148" width="250" height="42"/>
+  <text class="txt center" x="157" y="169">Shape Editor</text>
+  <text class="txt center" x="379" y="169">SVG Editor</text>
+  <text class="txt center" x="621" y="169">Animation Studio (aktiv)</text>
+
+  <!-- Scroll Content -->
+  <rect class="panel" x="30" y="220" width="1220" height="1710"/>
+
+  <!-- Preview -->
+  <rect class="sub" x="64" y="252" width="1152" height="260"/>
+  <text class="h2" x="84" y="286">Preview Canvas</text>
+  <rect class="optional" x="490" y="296" width="300" height="180"/>
+  <text class="small center" x="640" y="386">Morph-Shape</text>
+
+  <!-- Header row -->
+  <rect class="sub" x="64" y="526" width="1152" height="66"/>
+  <text class="h2" x="84" y="566">Animation Studio</text>
+  <rect class="button" x="918" y="540" width="110" height="36"/>
+  <text class="small center" x="973" y="558">Play/Pause</text>
+  <text class="txt" x="1050" y="562">Duration: 1200 ms</text>
+
+  <!-- Timing profile -->
+  <rect class="sub" x="64" y="604" width="1152" height="410"/>
+  <text class="h2" x="84" y="638">Timing Profile</text>
+  <text class="txt" x="84" y="674">Duration Slider</text>
+  <rect class="button" x="230" y="654" width="860" height="30"/>
+  <text class="tiny" x="1100" y="674">200..4000 ms</text>
+
+  <rect class="optional" x="84" y="700" width="1112" height="200"/>
+  <text class="small center" x="640" y="800">BezierCurveEditor (Interaktive Kurve)</text>
+
+  <rect class="button" x="84" y="916" width="265" height="36"/>
+  <rect class="button" x="367" y="916" width="265" height="36"/>
+  <rect class="button" x="650" y="916" width="265" height="36"/>
+  <rect class="button" x="933" y="916" width="263" height="36"/>
+  <text class="tiny center" x="216" y="934">x1 Feld</text>
+  <text class="tiny center" x="499" y="934">y1 Feld</text>
+  <text class="tiny center" x="782" y="934">x2 Feld</text>
+  <text class="tiny center" x="1064" y="934">y2 Feld</text>
+
+  <text class="txt" x="84" y="980">Presets (FilterChips) + Reverse Checkbox</text>
+
+  <!-- Animation section -->
+  <rect class="sub" x="64" y="1028" width="1152" height="358"/>
+  <text class="h2" x="84" y="1062">Animation</text>
+  <text class="small" x="84" y="1088">Chips: Morph, Rotate, Scale, Alpha, Colour, Position</text>
+
+  <rect class="chip" x="84" y="1110" width="140" height="34"/>
+  <rect class="chip" x="236" y="1110" width="140" height="34"/>
+  <rect class="chip" x="388" y="1110" width="140" height="34"/>
+  <rect class="chip" x="540" y="1110" width="140" height="34"/>
+  <rect class="chip" x="692" y="1110" width="140" height="34"/>
+  <rect class="chip" x="844" y="1110" width="160" height="34"/>
+
+  <text class="tiny center" x="154" y="1127">Morph</text>
+  <text class="tiny center" x="306" y="1127">Rotate</text>
+  <text class="tiny center" x="458" y="1127">Scale</text>
+  <text class="tiny center" x="610" y="1127">Alpha</text>
+  <text class="tiny center" x="762" y="1127">Colour</text>
+  <text class="tiny center" x="924" y="1127">Position</text>
+
+  <rect class="optional" x="84" y="1160" width="1112" height="60"/>
+  <text class="small center" x="640" y="1190">RangeSlider Morph (wenn Morph aktiviert)</text>
+  <rect class="optional" x="84" y="1230" width="1112" height="60"/>
+  <text class="small center" x="640" y="1260">RangeSlider Rotate (wenn Rotate aktiviert)</text>
+  <rect class="optional" x="84" y="1300" width="1112" height="60"/>
+  <text class="small center" x="640" y="1330">Weitere optionale Slider/Color-Picker für Scale, Alpha, Colour, Position</text>
+
+  <!-- Sequencer -->
+  <rect class="sub" x="64" y="1402" width="1152" height="292"/>
+  <text class="h2" x="84" y="1436">Sequencer</text>
+  <text class="small" x="84" y="1462">AnimationKind-Auswahl, Start ms, Direction, PlayMode</text>
+  <text class="small" x="84" y="1486">Buttons: Add Current, Play/Stop, Clear</text>
+  <rect class="optional" x="84" y="1500" width="1112" height="94"/>
+  <text class="small center" x="640" y="1548">TimelineEditor (Draggable Start/End + Playhead)</text>
+  <rect class="optional" x="84" y="1604" width="1112" height="74"/>
+  <text class="small center" x="640" y="1640">StepCards Liste (Apply / Duplicate / Delete)</text>
+
+  <!-- Asset bundle -->
+  <rect class="sub" x="64" y="1710" width="1152" height="204"/>
+  <text class="h2" x="84" y="1742">Asset Bundle</text>
+  <text class="small" x="84" y="1766">Namespace + Bundle ID</text>
+  <text class="small" x="84" y="1788">Copy Bundle JSON | Validate Bundle</text>
+  <text class="small" x="84" y="1810">Save Last Bundle | Load Last Bundle</text>
+  <text class="small" x="84" y="1832">Export File | Import File</text>
+  <text class="tiny" x="84" y="1858">Status-Text wird bei Bedarf darunter angezeigt.</text>
+</svg>

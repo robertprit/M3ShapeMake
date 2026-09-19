@@ -22,7 +22,7 @@ Eine `.ema`-Datei ist das kanonische, portable Austauschformat für ein M3ShapeM
 |---|---|
 | `assetId` | stabile Asset-ID |
 | `name` | Anzeigename |
-| `type` | `SHAPE`, `ANIMATED_SHAPE`, `BLOCK_SHAPE`, `NODE_SHAPE`, `ICON`, `VISUAL_COMPONENT` oder `ACTOR` |
+| `type` | `SHAPE`, `ANIMATED_SHAPE`, `BLOCK_SHAPE`, `NODE_SHAPE`, `PORT_SHAPE`, `ICON`, `VISUAL_COMPONENT`, `OVERLAY_SHAPE` oder `ACTOR` |
 | `version` | Asset-Version |
 | `tags` | geordnete Schlagwörter |
 | `design` | aktuelles kanonisches `VectorDocument` |
@@ -58,3 +58,11 @@ unverändert; fehlende nutzbare Pfade erzeugen eine sichtbare Diagnose.
 ## Nicht-Autorität
 
 `.ema` beschreibt, wie ein visuelles Asset aussieht und animiert werden kann. Wann oder warum ein Host eine Animation abspielt, entscheidet ausschließlich der Host.
+
+## VisualTasker Bridge
+
+Ein Host startet `com.m3shapes.editor.action.CREATE_VISUAL_ASSET` und kann den gewünschten Typ in
+`com.m3shapes.editor.extra.REQUESTED_ASSET_TYPE` übergeben. ShapeMaker liefert das Asset als
+lesbare `content://`-URI im Activity-Result zurück; die stabile Asset-ID steht zusätzlich in
+`com.m3shapes.editor.extra.RESULT_ASSET_ID`. Der Dateitransfer nutzt bewusst keinen JSON-String im
+Binder und bleibt dadurch auch für große Vektordokumente geeignet.

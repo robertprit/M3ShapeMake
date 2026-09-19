@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="1280"
+  height="2540"
+  viewBox="0 0 1280 2540"
+  role="document"
+  aria-labelledby="doc-title doc-desc"
+  data-app="M3ShapeMake"
+  data-screen="AnimationStudioTab"
+  data-source-language="Kotlin Compose"
+  data-version="1.0.0"
+>
+  <title id="doc-title">M3ShapeMake - Animation Studio Tab - Rich Metadata Layout</title>
+  <desc id="doc-desc">
+    Strukturierte SVG Wireframe-Rekonstruktion des Animation Studio Tabs inkl. AppBar, TabRow,
+    Preview, Timing Profile, Animation Controls, Sequencer und Asset Bundle.
+  </desc>
+
+  <metadata id="layout-metadata"><![CDATA[
+{
+  "document": {
+    "name": "animation-tab-layout-rich-metadata",
+    "type": "ui-wireframe",
+    "screen": "AnimationStudioTab",
+    "source": {
+      "appComposable": "M3ShapeMakeApp",
+      "tabComposable": "AnimationStudioTab",
+      "subComposables": ["AnimationSequencerPanel", "M3ShapeExportPanel", "ParamRangeSlider", "TimelineEditor"]
+    },
+    "canvas": {
+      "widthPx": 1280,
+      "heightPx": 2540,
+      "densityReference": "dp-inspired proportions"
+    }
+  },
+  "interactionModel": {
+    "scroll": "vertical",
+    "previewControl": ["playPause", "duration"],
+    "timeline": ["drag-step-start", "drag-step-end", "drag-step-block"],
+    "toggles": ["reverse", "animation-kind-chips"],
+    "fileActions": ["copy", "validate", "save", "load", "export", "import"]
+  },
+  "animationKinds": ["Morph", "Rotate", "Scale", "Alpha", "Colour", "Position"],
+  "easingPresets": ["Linear", "Ease-In", "Ease-Out", "Ease-In-Out", "Anticipate", "Overshoot"],
+  "sequencerDirections": ["Vorwaerts", "Rueckwaerts", "PingPong", "Start-End"],
+  "sequencerPlayModes": ["1x", "Loop"],
+  "layoutSections": [
+    {"id": "appbar", "x": 30, "y": 24, "w": 1220, "h": 108},
+    {"id": "tabrow", "x": 30, "y": 144, "w": 1220, "h": 78},
+    {"id": "content", "x": 30, "y": 234, "w": 1220, "h": 2278}
+  ],
+  "notes": [
+    "Alle Gruppen haben IDs fuer editorfreundliche Selektion.",
+    "Controls enthalten data-* Attribute fuer semantische Auswertung.",
+    "Gestrichelte Boxen markieren konditionale/optionale Unterbereiche."
+  ]
+}
+  ]]></metadata>
+
+  <defs>
+    <style>
+      .bg { fill: #f4f6fb; }
+      .frame { fill: #ffffff; stroke: #7f8899; stroke-width: 2; rx: 18; ry: 18; }
+      .section { fill: #f9fbff; stroke: #9aa4b8; stroke-width: 1.5; rx: 12; ry: 12; }
+      .panel { fill: #ffffff; stroke: #9aa4b8; stroke-width: 1.3; rx: 10; ry: 10; }
+      .chip { fill: #eef2ff; stroke: #8ea5ff; stroke-width: 1.2; rx: 10; ry: 10; }
+      .chip-active { fill: #dfe8ff; stroke: #587bff; stroke-width: 1.6; rx: 10; ry: 10; }
+      .btn { fill: #f3f5f9; stroke: #95a0b3; stroke-width: 1.2; rx: 10; ry: 10; }
+      .btn-tonal { fill: #e2ecff; stroke: #7f98da; stroke-width: 1.2; rx: 10; ry: 10; }
+      .optional { fill: #ffffff; stroke: #9aa4b8; stroke-width: 1.4; stroke-dasharray: 8 6; rx: 10; ry: 10; }
+      .slider-track { fill: #d4dbe8; rx: 8; ry: 8; }
+      .slider-fill { fill: #7a97ff; rx: 8; ry: 8; }
+      .timeline-bar { fill: #d8deea; rx: 4; ry: 4; }
+      .timeline-step { fill: #9cc2ff; rx: 4; ry: 4; }
+      .title { font: 700 24px 'Inter', 'Segoe UI', sans-serif; fill: #1f2430; }
+      .h1 { font: 700 20px 'Inter', 'Segoe UI', sans-serif; fill: #222a38; }
+      .h2 { font: 650 17px 'Inter', 'Segoe UI', sans-serif; fill: #293347; }
+      .txt { font: 500 15px 'Inter', 'Segoe UI', sans-serif; fill: #2f394c; }
+      .small { font: 500 13px 'Inter', 'Segoe UI', sans-serif; fill: #55627b; }
+      .tiny { font: 500 12px 'Inter', 'Segoe UI', sans-serif; fill: #637189; }
+      .center { text-anchor: middle; dominant-baseline: middle; }
+    </style>
+  </defs>
+
+  <rect id="bg" class="bg" x="0" y="0" width="1280" height="2540"/>
+
+  <!-- Root frame -->
+  <g id="screen-root" data-role="screen" data-tab-index="2" data-tab-label="Animation Studio">
+    <rect id="app-shell" class="frame" x="16" y="12" width="1248" height="2514"/>
+
+    <!-- AppBar -->
+    <g id="appbar" data-role="top-app-bar" data-compose="TopAppBar">
+      <title>TopAppBar with app title and subtitle</title>
+      <rect class="frame" x="30" y="24" width="1220" height="108"/>
+      <text class="title" x="56" y="70">M3ShapeMake</text>
+      <text class="small" x="56" y="102">Shape Editor · Native SVG Editor · Animation Studio</text>
+      <text class="tiny" x="990" y="102">containerColor: primaryContainer</text>
+    </g>
+
+    <!-- TabRow -->
+    <g id="tabrow" data-role="navigation-tabs" data-compose="TabRow">
+      <title>Primary tab navigation</title>
+      <rect class="frame" x="30" y="144" width="1220" height="78"/>
+      <rect id="tab-shape-editor" class="btn" x="50" y="162" width="250" height="42" data-selected="false"/>
+      <rect id="tab-svg-editor" class="btn" x="315" y="162" width="250" height="42" data-selected="false"/>
+      <rect id="tab-animation-studio" class="chip-active" x="580" y="162" width="300" height="42" data-selected="true"/>
+      <text class="txt center" x="175" y="183">Shape Editor</text>
+      <text class="txt center" x="440" y="183">SVG Editor</text>
+      <text class="txt center" x="730" y="183">Animation Studio</text>
+    </g>
+
+    <!-- Scroll container -->
+    <g id="content-scroll-column" data-role="scroll-content" data-compose="Column" data-scroll="vertical">
+      <rect class="frame" x="30" y="234" width="1220" height="2278"/>
+
+      <!-- Preview -->
+      <g id="section-preview" data-section="preview" data-compose="Box+Canvas">
+        <title>Preview area with morph canvas</title>
+        <rect class="section" x="64" y="264" width="1152" height="282"/>
+        <text class="h1" x="88" y="300">Preview Canvas</text>
+        <rect class="optional" x="468" y="316" width="344" height="200" data-placeholder="Morph.toPath(progress)"/>
+        <text class="small center" x="640" y="416">Canvas size ~200dp, rotate/scale/translate/fill+stroke</text>
+      </g>
+
+      <!-- Studio header row -->
+      <g id="section-header-row" data-section="studio-header" data-compose="Row">
+        <title>Animation Studio row with play-pause and duration</title>
+        <rect class="section" x="64" y="560" width="1152" height="78"/>
+        <text class="h1" x="88" y="606">Animation Studio</text>
+        <rect id="btn-preview-playpause" class="btn" x="914" y="579" width="124" height="40" data-action="toggle-loop-or-sequence"/>
+        <text class="txt center" x="976" y="599">Play/Pause</text>
+        <text class="txt" x="1058" y="603">1200 ms</text>
+      </g>
+
+      <!-- Timing profile -->
+      <g id="section-timing" data-section="timing-profile" data-compose="Column">
+        <title>Timing profile controls</title>
+        <rect class="section" x="64" y="652" width="1152" height="490"/>
+        <text class="h1" x="88" y="688">Timing Profile</text>
+
+        <g id="duration-row" data-role="slider-row" data-binding="durationMs" data-range="200..4000" data-step="50">
+          <rect class="panel" x="84" y="706" width="1112" height="56"/>
+          <text class="txt" x="102" y="740">Duration</text>
+          <rect class="slider-track" x="230" y="724" width="790" height="18"/>
+          <rect class="slider-fill" x="230" y="724" width="290" height="18"/>
+          <circle cx="520" cy="733" r="10" fill="#587bff"/>
+          <text class="small" x="1036" y="740">200..4000 ms</text>
+        </g>
+
+        <g id="bezier-editor" data-role="curve-editor" data-compose="BezierCurveEditor" data-editable="true">
+          <rect class="optional" x="84" y="774" width="1112" height="218"/>
+          <text class="small center" x="640" y="882">BezierCurveEditor (drag handles, easing curve)</text>
+        </g>
+
+        <g id="bezier-coordinates" data-role="numeric-fields" data-fields="x1,y1,x2,y2">
+          <rect class="btn" x="84" y="1008" width="265" height="44" data-field="x1"/>
+          <rect class="btn" x="367" y="1008" width="265" height="44" data-field="y1"/>
+          <rect class="btn" x="650" y="1008" width="265" height="44" data-field="x2"/>
+          <rect class="btn" x="933" y="1008" width="263" height="44" data-field="y2"/>
+          <text class="tiny center" x="216" y="1030">x1</text>
+          <text class="tiny center" x="499" y="1030">y1</text>
+          <text class="tiny center" x="782" y="1030">x2</text>
+          <text class="tiny center" x="1064" y="1030">y2</text>
+        </g>
+
+        <g id="easing-presets" data-role="chips" data-source="StudioEasing.entries">
+          <text class="h2" x="84" y="1086">Presets</text>
+          <rect class="chip-active" x="84" y="1098" width="120" height="32" data-preset="Linear"/>
+          <rect class="chip" x="210" y="1098" width="120" height="32" data-preset="Ease-In"/>
+          <rect class="chip" x="336" y="1098" width="120" height="32" data-preset="Ease-Out"/>
+          <rect class="chip" x="462" y="1098" width="140" height="32" data-preset="Ease-In-Out"/>
+          <rect class="chip" x="608" y="1098" width="130" height="32" data-preset="Anticipate"/>
+          <rect class="chip" x="744" y="1098" width="124" height="32" data-preset="Overshoot"/>
+          <text class="tiny center" x="144" y="1114">Linear</text>
+          <text class="tiny center" x="270" y="1114">Ease-In</text>
+          <text class="tiny center" x="396" y="1114">Ease-Out</text>
+          <text class="tiny center" x="532" y="1114">Ease-In-Out</text>
+          <text class="tiny center" x="673" y="1114">Anticipate</text>
+          <text class="tiny center" x="806" y="1114">Overshoot</text>
+        </g>
+      </g>
+
+      <!-- Reverse row -->
+      <g id="section-reverse" data-section="reverse-toggle" data-compose="Row">
+        <rect class="section" x="64" y="1156" width="1152" height="66"/>
+        <rect class="panel" x="84" y="1174" width="22" height="22" data-role="checkbox" data-checked="false"/>
+        <text class="txt" x="116" y="1191">Reverse</text>
+        <text class="small" x="220" y="1191">Start -&gt; Ende oder Ende -&gt; Start</text>
+      </g>
+
+      <!-- Animation controls -->
+      <g id="section-animation-controls" data-section="animation-controls" data-compose="FlowRow+conditional-sliders">
+        <rect class="section" x="64" y="1234" width="1152" height="562"/>
+        <text class="h1" x="88" y="1270">Animation</text>
+
+        <g id="animation-kind-chips" data-role="chips" data-source="AnimationKind.entries">
+          <rect class="chip-active" x="84" y="1286" width="130" height="34" data-kind="Morph" data-enabled="true"/>
+          <rect class="chip-active" x="220" y="1286" width="130" height="34" data-kind="Rotate" data-enabled="true"/>
+          <rect class="chip" x="356" y="1286" width="130" height="34" data-kind="Scale" data-enabled="false"/>
+          <rect class="chip" x="492" y="1286" width="130" height="34" data-kind="Alpha" data-enabled="false"/>
+          <rect class="chip" x="628" y="1286" width="130" height="34" data-kind="Colour" data-enabled="false"/>
+          <rect class="chip" x="764" y="1286" width="140" height="34" data-kind="Position" data-enabled="false"/>
+          <text class="tiny center" x="149" y="1303">Morph</text>
+          <text class="tiny center" x="285" y="1303">Rotate</text>
+          <text class="tiny center" x="421" y="1303">Scale</text>
+          <text class="tiny center" x="557" y="1303">Alpha</text>
+          <text class="tiny center" x="693" y="1303">Colour</text>
+          <text class="tiny center" x="834" y="1303">Position</text>
+        </g>
+
+        <g id="param-sliders-active-default" data-role="range-sliders" data-state="current-default">
+          <rect class="panel" x="84" y="1334" width="1112" height="80" data-param="Morph" data-range="0..1"/>
+          <text class="txt" x="102" y="1364">Morph</text>
+          <rect class="slider-track" x="170" y="1354" width="980" height="16"/>
+          <rect class="slider-fill" x="170" y="1354" width="820" height="16"/>
+          <text class="small" x="102" y="1390">0% -&gt; 100%</text>
+
+          <rect class="panel" x="84" y="1422" width="1112" height="80" data-param="Rotate" data-range="0..360"/>
+          <text class="txt" x="102" y="1452">Rotate</text>
+          <rect class="slider-track" x="170" y="1442" width="980" height="16"/>
+          <rect class="slider-fill" x="170" y="1442" width="978" height="16"/>
+          <text class="small" x="102" y="1478">0 deg -&gt; 360 deg</text>
+        </g>
+
+        <g id="param-sliders-conditional" data-role="conditional" data-visible-when="kind-enabled">
+          <rect class="optional" x="84" y="1510" width="1112" height="62" data-param="Scale"/>
+          <text class="small center" x="640" y="1542">Scale slider (0.5..2.0) wenn Scale aktiv</text>
+          <rect class="optional" x="84" y="1578" width="1112" height="62" data-param="Alpha"/>
+          <text class="small center" x="640" y="1610">Alpha slider (0.05..1.0) wenn Alpha aktiv</text>
+          <rect class="optional" x="84" y="1646" width="1112" height="62" data-param="Colour"/>
+          <text class="small center" x="640" y="1678">Colour blend + Ziel-Farbe Palette wenn Colour aktiv</text>
+          <rect class="optional" x="84" y="1714" width="1112" height="62" data-param="Position"/>
+          <text class="small center" x="640" y="1746">Pos X/Pos Y slider (-80..80) wenn Position aktiv</text>
+        </g>
+      </g>
+
+      <!-- Sequencer -->
+      <g id="section-sequencer" data-section="sequencer" data-compose="AnimationSequencerPanel">
+        <rect class="section" x="64" y="1810" width="1152" height="430"/>
+        <text class="h1" x="88" y="1846">Sequencer</text>
+        <text class="small" x="88" y="1872">Timeline mit manuellem Start/Ende je Effekt (ein Effekt pro Step).</text>
+
+        <g id="sequencer-kind-buttons" data-role="kind-buttons">
+          <rect class="btn-tonal" x="84" y="1888" width="114" height="32" data-kind="Morph"/>
+          <rect class="btn" x="204" y="1888" width="114" height="32" data-kind="Rotate"/>
+          <rect class="btn" x="324" y="1888" width="114" height="32" data-kind="Scale"/>
+          <rect class="btn" x="444" y="1888" width="114" height="32" data-kind="Alpha"/>
+          <rect class="btn" x="564" y="1888" width="114" height="32" data-kind="Colour"/>
+          <rect class="btn" x="684" y="1888" width="114" height="32" data-kind="Position"/>
+          <text class="tiny center" x="141" y="1904">Morph</text>
+          <text class="tiny center" x="261" y="1904">Rotate</text>
+          <text class="tiny center" x="381" y="1904">Scale</text>
+          <text class="tiny center" x="501" y="1904">Alpha</text>
+          <text class="tiny center" x="621" y="1904">Colour</text>
+          <text class="tiny center" x="741" y="1904">Position</text>
+        </g>
+
+        <g id="sequencer-startms-row" data-role="input-row">
+          <rect class="panel" x="84" y="1930" width="260" height="48" data-field="Start ms"/>
+          <text class="txt" x="104" y="1960">Start ms</text>
+          <text class="small" x="356" y="1960">Dauer = aktuelle Duration im Studio</text>
+        </g>
+
+        <g id="sequencer-mode-buttons" data-role="direction-and-playmode">
+          <text class="small" x="84" y="1994">Direction:</text>
+          <rect class="btn-tonal" x="160" y="1978" width="110" height="32" data-direction="Vorwaerts"/>
+          <rect class="btn" x="276" y="1978" width="122" height="32" data-direction="Rueckwaerts"/>
+          <rect class="btn" x="404" y="1978" width="108" height="32" data-direction="PingPong"/>
+          <rect class="btn" x="518" y="1978" width="108" height="32" data-direction="Start-End"/>
+          <text class="tiny center" x="215" y="1994">Vorwaerts</text>
+          <text class="tiny center" x="337" y="1994">Rueckwaerts</text>
+          <text class="tiny center" x="458" y="1994">PingPong</text>
+          <text class="tiny center" x="572" y="1994">Start-End</text>
+
+          <text class="small" x="640" y="1994">PlayMode:</text>
+          <rect class="btn-tonal" x="720" y="1978" width="74" height="32" data-playmode="1x"/>
+          <rect class="btn" x="800" y="1978" width="82" height="32" data-playmode="Loop"/>
+          <text class="tiny center" x="757" y="1994">1x</text>
+          <text class="tiny center" x="841" y="1994">Loop</text>
+        </g>
+
+        <g id="sequencer-main-actions" data-role="primary-actions">
+          <rect class="btn-tonal" x="84" y="2022" width="130" height="36" data-action="add-current"/>
+          <rect class="btn" x="222" y="2022" width="90" height="36" data-action="play-stop"/>
+          <rect class="btn" x="320" y="2022" width="90" height="36" data-action="clear"/>
+          <text class="tiny center" x="149" y="2040">Add Current</text>
+          <text class="tiny center" x="267" y="2040">Play</text>
+          <text class="tiny center" x="365" y="2040">Clear</text>
+        </g>
+
+        <g id="timeline-editor" data-role="timeline" data-compose="TimelineEditor" data-draggable="true">
+          <rect class="panel" x="84" y="2066" width="1112" height="110"/>
+          <rect class="timeline-bar" x="104" y="2142" width="1072" height="4"/>
+          <rect class="timeline-step" x="160" y="2094" width="250" height="10" data-step-id="step_1" data-kind="Morph"/>
+          <rect class="timeline-step" x="416" y="2106" width="330" height="10" data-step-id="step_2" data-kind="Rotate"/>
+          <line x1="320" y1="2078" x2="320" y2="2146" stroke="#1e88e5" stroke-width="2.5"/>
+          <circle cx="320" cy="2144" r="5" fill="#1e88e5"/>
+          <text class="tiny" x="328" y="2088">playheadMs</text>
+        </g>
+
+        <g id="sequencer-step-list" data-role="step-cards">
+          <rect class="optional" x="84" y="2184" width="1112" height="44"/>
+          <text class="small center" x="640" y="2206">StepCards Liste: Apply / Duplicate / Delete</text>
+        </g>
+      </g>
+
+      <!-- Asset Bundle -->
+      <g id="section-asset-bundle" data-section="asset-bundle" data-compose="M3ShapeExportPanel">
+        <rect class="section" x="64" y="2254" width="1152" height="234"/>
+        <text class="h1" x="88" y="2290">Asset Bundle</text>
+        <text class="small" x="88" y="2314">Local .m3shape.json - clipboard, internal save/load, file export/import.</text>
+
+        <rect class="panel" x="84" y="2326" width="540" height="40" data-field="Namespace"/>
+        <rect class="panel" x="636" y="2326" width="560" height="40" data-field="Bundle ID"/>
+        <text class="tiny" x="98" y="2350">Namespace</text>
+        <text class="tiny" x="650" y="2350">Bundle ID</text>
+
+        <rect class="btn-tonal" x="84" y="2376" width="270" height="36" data-action="copy-json"/>
+        <rect class="btn" x="362" y="2376" width="262" height="36" data-action="validate"/>
+        <rect class="btn" x="632" y="2376" width="272" height="36" data-action="save-last"/>
+        <rect class="btn" x="912" y="2376" width="284" height="36" data-action="load-last"/>
+
+        <rect class="btn" x="84" y="2418" width="552" height="36" data-action="export-file"/>
+        <rect class="btn" x="644" y="2418" width="552" height="36" data-action="import-file"/>
+
+        <text class="tiny center" x="219" y="2394">Copy Bundle JSON</text>
+        <text class="tiny center" x="493" y="2394">Validate Bundle</text>
+        <text class="tiny center" x="768" y="2394">Save Last Bundle</text>
+        <text class="tiny center" x="1054" y="2394">Load Last Bundle</text>
+        <text class="tiny center" x="360" y="2436">Export File</text>
+        <text class="tiny center" x="920" y="2436">Import File</text>
+      </g>
+    </g>
+  </g>
+</svg>
