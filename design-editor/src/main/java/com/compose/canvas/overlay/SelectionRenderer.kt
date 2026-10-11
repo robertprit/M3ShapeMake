@@ -24,9 +24,9 @@ enum class HandleHitType {
  */
 object SelectionRenderer {
     private val color = Color(0xFF1565C0)
-    private const val HANDLE_SIZE = 10f
-    private const val HIT_PADDING = 8f
-    private const val ROTATE_OFFSET = 28f
+    private const val HANDLE_SIZE = 18f
+    private const val HIT_PADDING = 10f
+    private const val ROTATE_OFFSET = 36f
 
     fun drawSelection(
         scope: DrawScope,
@@ -48,7 +48,7 @@ object SelectionRenderer {
             color = color,
             topLeft = screenRect.topLeft,
             size = screenRect.size,
-            style = Stroke(width = 1.5f)
+            style = Stroke(width = 2f)
         )
         handleCenters(screenRect).forEach { drawHandle(scope, it) }
         val rotate = rotateHandle(screenRect)
@@ -56,10 +56,10 @@ object SelectionRenderer {
             color = color,
             start = Offset(screenRect.center.x, screenRect.top),
             end = rotate,
-            strokeWidth = 1.5f
+            strokeWidth = 2f
         )
         scope.drawCircle(color = Color.White, radius = HANDLE_SIZE / 2f, center = rotate)
-        scope.drawCircle(color = color, radius = HANDLE_SIZE / 2f, center = rotate, style = Stroke(1.5f))
+        scope.drawCircle(color = color, radius = HANDLE_SIZE / 2f, center = rotate, style = Stroke(2f))
     }
 
     fun hitTestHandle(
@@ -123,7 +123,7 @@ object SelectionRenderer {
             color = color,
             topLeft = Offset(center.x - half, center.y - half),
             size = Size(HANDLE_SIZE, HANDLE_SIZE),
-            style = Stroke(width = 1.5f)
+            style = Stroke(width = 2f)
         )
     }
 }

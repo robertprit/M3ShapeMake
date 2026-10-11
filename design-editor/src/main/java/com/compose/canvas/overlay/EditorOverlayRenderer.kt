@@ -4,8 +4,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import com.compose.canvas.core.VectorObject
 import com.compose.canvas.core.WorldTransform
 import com.compose.canvas.editor.Axis
@@ -74,9 +77,12 @@ object EditorOverlayRenderer {
         for (i in 1 until pts.size) {
             scope.drawLine(color = pathColor, start = pts[i - 1], end = pts[i], strokeWidth = 2f)
         }
-        pts.forEach { scope.drawCircle(color = pathColor, radius = 5f, center = it) }
+        pts.forEach {
+            scope.drawCircle(color = Color.White, radius = 10f, center = it)
+            scope.drawCircle(color = pathColor, radius = 8f, center = it)
+        }
         if (pts.size >= 2) {
-            scope.drawCircle(color = pathColor.copy(alpha = 0.3f), radius = 10f, center = pts.first())
+            scope.drawCircle(color = pathColor.copy(alpha = 0.3f), radius = 15f, center = pts.first())
         }
     }
 
@@ -137,13 +143,28 @@ object EditorOverlayRenderer {
             for (port in obj.semantics.ports) {
                 val p = world.transformPoint(port.x, port.y)
                 val s = viewport.documentToScreen(p.x, p.y)
-                scope.drawCircle(color = Color.White, radius = 7f, center = s)
-                scope.drawCircle(color = portColor, radius = 5f, center = s)
+                scope.drawCircle(color = Color.White, radius = 12f, center = s)
+                scope.drawCircle(color = portColor, radius = 9f, center = s)
+                scope.drawIntoCanvas { canvas ->
+                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.White.toArgb()
+                        textSize = 12f * scope.density
+                        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                        setShadowLayer(3f, 0f, 1f, Color.Black.toArgb())
+                    }
+                    canvas.nativeCanvas.drawText(
+                        port.name.ifBlank { port.portType.name.lowercase() },
+                        s.x + 15f,
+                        s.y + paint.textSize * 0.35f,
+                        paint,
+                    )
+                }
             }
             for (anchor in obj.semantics.anchors) {
                 val p = world.transformPoint(anchor.x, anchor.y)
                 val s = viewport.documentToScreen(p.x, p.y)
-                scope.drawCircle(color = anchorColor, radius = 5f, center = s, style = Stroke(2f))
+                scope.drawCircle(color = Color.White, radius = 11f, center = s)
+                scope.drawCircle(color = anchorColor, radius = 9f, center = s, style = Stroke(3f))
             }
             for (area in obj.semantics.contentAreas) {
                 val tl = world.transformPoint(area.bounds.left, area.bounds.top)
@@ -168,16 +189,18 @@ object EditorOverlayRenderer {
                 node.handleIn?.let { h ->
                     val hs = screen(h, world, viewport)
                     scope.drawLine(handleColor, p, hs, 1.5f)
-                    scope.drawCircle(handleColor, 4f, hs)
+                    scope.drawCircle(Color.White, 12f, hs)
+                    scope.drawCircle(handleColor, 9f, hs)
                 }
                 node.handleOut?.let { h ->
                     val hs = screen(h, world, viewport)
                     scope.drawLine(handleColor, p, hs, 1.5f)
-                    scope.drawCircle(handleColor, 4f, hs)
+                    scope.drawCircle(Color.White, 12f, hs)
+                    scope.drawCircle(handleColor, 9f, hs)
                 }
                 val selected = state.selectedNode == NodeRef(si, ni)
-                scope.drawCircle(if (selected) Color(0xFFFFC107) else Color.White, 6f, p)
-                scope.drawCircle(nodeColor, 6f, p, style = Stroke(2f))
+                scope.drawCircle(if (selected) Color(0xFFFFC107) else Color.White, 14f, p)
+                scope.drawCircle(nodeColor, 14f, p, style = Stroke(3.5f))
             }
         }
     }
@@ -196,18 +219,18 @@ object EditorOverlayRenderer {
                 val ref = NodeRef(si, ni)
                 node.handleOut?.let { h ->
                     val s = screen(h, world, viewport)
-                    if (hypot(s.x - screenX, s.y - screenY) <= tolerance) return ref to HandleRef(ref, true)
+                    if (hypot(s.x - screenX, s.y - screenY) <= tolerance.coerceAtLeast(20f)) return ref to HandleRef(ref, true)
                 }
                 node.handleIn?.let { h ->
                     val s = screen(h, world, viewport)
-                    if (hypot(s.x - screenX, s.y - screenY) <= tolerance) return ref to HandleRef(ref, false)
+                    if (hypot(s.x - screenX, s.y - screenY) <= tolerance.coerceAtLeast(20f)) return ref to HandleRef(ref, false)
                 }
             }
         }
         for ((si, sub) in state.data.subpaths.withIndex()) {
             for ((ni, node) in sub.nodes.withIndex()) {
                 val s = screen(node.point, world, viewport)
-                if (hypot(s.x - screenX, s.y - screenY) <= tolerance) return NodeRef(si, ni) to null
+                if (hypot(s.x - screenX, s.y - screenY) <= tolerance.coerceAtLeast(22f)) return NodeRef(si, ni) to null
             }
         }
         return null to null

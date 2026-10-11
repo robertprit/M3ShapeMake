@@ -12,6 +12,7 @@ fun PointerType.toKind(): PointerKind = when (this) {
 }
 
 fun PointerKind.hitTolerancePx(): Float = when (this) {
-    PointerKind.Touch, PointerKind.Unknown -> 24f
-    PointerKind.Stylus, PointerKind.Mouse -> 10f
+    PointerKind.Touch, PointerKind.Unknown -> 32f
+    PointerKind.Stylus -> 26f
+    PointerKind.Mouse -> 14f
 }

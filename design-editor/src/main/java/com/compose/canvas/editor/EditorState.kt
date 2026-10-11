@@ -12,6 +12,7 @@ import com.compose.canvas.core.SceneNode
 import com.compose.canvas.core.StrokeStyle
 import com.compose.canvas.core.VectorDocument
 import com.compose.canvas.core.VectorObject
+import com.compose.canvas.core.WorldTransform
 import com.compose.canvas.geometry.EllipseGeometry
 import com.compose.canvas.geometry.LineGeometry
 import com.compose.canvas.geometry.ObjectId
@@ -99,8 +100,13 @@ class EditorState(
     val resizeStartBounds: RectF? get() = resizeSession.startBounds
     val currentResizeBounds: RectF? get() = resizeSession.currentBounds
 
-    fun displayDocument(): VectorDocument =
-        TransientDocument.forDisplay(document, selection, dragState, resizeSession, rotateSession)
+    fun displayDocument(): VectorDocument {
+        val transient = TransientDocument.forDisplay(document, selection, dragState, resizeSession, rotateSession)
+        if (!pathEdit.active) return transient
+        val objectId = pathEdit.objectId ?: return transient
+        val edited = transient.findNode(objectId) as? VectorObject ?: return transient
+        return transient.replaceObject(edited.copy(geometry = pathEdit.data.toGeometry()))
+    }
 
     fun replaceDocument(doc: VectorDocument) {
         document = doc
@@ -241,6 +247,19 @@ class EditorState(
         )
     }
 
+    fun updateDocumentProperties(updated: VectorDocument, label: String = "Edit canvas") {
+        if (document == updated) return
+        applyCommand(
+            ReplaceObjectCommand(
+                beforeDocument = document,
+                afterDocument = updated,
+                undoSelection = selection,
+                redoSelection = selection,
+                label = label,
+            )
+        )
+    }
+
     fun updateNode(node: SceneNode) {
         val old = document.findNode(node.id) ?: return
         if (old == node) return
@@ -270,7 +289,9 @@ class EditorState(
             for (id in selection.selectedIds) {
                 val node = doc.findNode(id) ?: continue
                 if (node.locked) continue
-                doc = doc.replaceObject(offsetNode(node, delta.x, delta.y))
+                val parentInverse = WorldTransform.parentMatrixOf(doc, id)?.invert()
+                val localDelta = parentInverse?.transformVector(delta) ?: delta
+                doc = doc.replaceObject(offsetNode(node, localDelta.x, localDelta.y))
             }
             if (doc != document) {
                 applyCommand(MoveObjectCommand(delta.x, delta.y, before, doc, selection, selection))
@@ -423,7 +444,7 @@ class EditorState(
         for (id in selection.selectedIds) {
             val node = doc.findNode(id) ?: continue
             if (node.locked) continue
-            val newTransform = TransientDocument.resizeTransform(node.transform, oldBounds, newBounds)
+            val newTransform = TransientDocument.resizeTransform(doc, node, oldBounds, newBounds)
             doc = doc.replaceObject(node.withTransform(newTransform))
         }
         if (doc != before) {

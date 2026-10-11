@@ -14,5 +14,9 @@ class ShapeMakerBridgeContractTest {
             "com.m3shapes.editor.extra.REQUESTED_ASSET_TYPE",
             ShapeMakerBridgeContract.EXTRA_REQUESTED_ASSET_TYPE,
         )
+        assertEquals(
+            "com.visualtasker.wss.action.IMPORT_VISUAL_ASSET",
+            ShapeMakerBridgeContract.ACTION_IMPORT_VISUAL_ASSET,
+        )
     }
 }

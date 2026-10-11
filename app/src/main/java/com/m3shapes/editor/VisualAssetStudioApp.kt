@@ -17,7 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -67,7 +72,6 @@ import com.compose.canvas.asset.VisualAssetType
 import com.compose.canvas.asset.newVisualAsset
 import com.compose.canvas.editor.EditorState
 import com.compose.canvas.geometry.PathGeometry
-import com.compose.canvas.ui.theme.EditorTheme
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -78,6 +82,8 @@ private const val LAST_EMA_FILE = "last_asset.ema"
 fun VisualAssetStudioApp(
     requestedAssetType: VisualAssetType? = null,
     onReturnAsset: ((VisualAsset) -> Unit)? = null,
+    darkMode: Boolean = false,
+    onToggleDarkMode: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -101,7 +107,9 @@ fun VisualAssetStudioApp(
     var presetMenuOpen by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf("DESIGN bereit · Start und Ende sind identisch") }
     var pendingExport by remember { mutableStateOf("") }
-    val assetLibrary = remember(context.filesDir) { DirectoryAssetLibrary(File(context.filesDir, "asset-library")) }
+    val assetLibrary = remember(context.filesDir) {
+        DirectoryAssetLibrary(File(context.filesDir, "asset-library")).also(VisualTaskerBuiltInAssets::seed)
+    }
     var libraryQuery by rememberSaveable { mutableStateOf("") }
     var libraryRevision by remember { mutableIntStateOf(0) }
 
@@ -202,6 +210,10 @@ fun VisualAssetStudioApp(
                 )
             )
         )
+    }
+
+    fun transferAsset(): VisualAsset {
+        return currentAsset().forVisualTaskerTransfer(editorState.selectedNodes())
     }
 
     fun applyLoadedAsset(loaded: VisualAsset) {
@@ -426,7 +438,15 @@ fun VisualAssetStudioApp(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onToggleDarkMode) {
+                        Icon(
+                            imageVector = if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = if (darkMode) "Hellmodus" else "Dunkelmodus",
+                        )
+                    }
+                },
             )
         }
     ) { padding ->
@@ -522,7 +542,7 @@ fun VisualAssetStudioApp(
                             exportLauncher.launch("${asset.identity.assetId}.$EMA_FILE_EXTENSION")
                         }) { Text(".ema Export") }
                         onReturnAsset?.let { returnAsset ->
-                            Button(onClick = { returnAsset(currentAsset()) }) {
+                            Button(onClick = { returnAsset(transferAsset()) }) {
                                 Text("An VisualTasker übergeben")
                             }
                         }
@@ -569,12 +589,10 @@ fun VisualAssetStudioApp(
                             MaterialTheme.colorScheme.error
                         } else MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    EditorTheme {
-                        VectorShapeEditorApp(
-                            editorState = editorState,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    VectorShapeEditorApp(
+                        editorState = editorState,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
                 1 -> Column(Modifier.fillMaxSize()) {
                     morphPreparation.diagnostic?.let {

@@ -290,7 +290,13 @@ fun EditorState.updatePathEditDrag(local: Offset) {
     val target = state.dragTargetNode ?: return
     val start = state.dragStartPoint ?: local
     val node = state.data.node(target) ?: return
-    applyPathEdit(state.copy(data = state.data.moveNode(target, node.point + (local - start)), selectedNode = target))
+    applyPathEdit(
+        state.copy(
+            data = state.data.moveNode(target, node.point + (local - start)),
+            selectedNode = target,
+            dragStartPoint = local
+        )
+    )
 }
 
 fun EditorState.finishPathEditDrag() {

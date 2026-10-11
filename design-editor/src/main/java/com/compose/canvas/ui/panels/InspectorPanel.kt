@@ -3,11 +3,15 @@ package com.compose.canvas.ui.panels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,12 +23,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,17 +45,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.compose.canvas.ui.components.ColorPickerDialog
 import com.compose.canvas.ui.components.inspectorFieldColors
 import com.compose.canvas.ui.components.parseHexColor
-import com.compose.canvas.ui.theme.ChromeBorder
-import com.compose.canvas.ui.theme.ChromeOnSurface
 import com.compose.canvas.core.BoundsCalculator
 import com.compose.canvas.core.FillKind
 import com.compose.canvas.core.StrokeCap
@@ -62,7 +71,8 @@ import com.compose.canvas.editor.convertSelectedToPath
 import com.compose.canvas.editor.deleteSelectedNode
 import com.compose.canvas.editor.flipSelected
 import com.compose.canvas.editor.groupSelected
-import com.compose.canvas.editor.insertPreset
+import com.compose.canvas.editor.insertMaterialShape
+import com.compose.canvas.editor.materialShapePath
 import com.compose.canvas.editor.setObjectParameter
 import com.compose.canvas.editor.simplifySelectedPath
 import com.compose.canvas.editor.toggleSelectedPathClosed
@@ -75,8 +85,12 @@ import com.compose.canvas.geometry.RectGeometry
 import com.compose.canvas.geometry.StarGeometry
 import com.compose.canvas.geometry.TextGeometry
 import com.compose.canvas.geometry.TriangleGeometry
+import com.compose.canvas.geometry.PathSegment
+import com.compose.canvas.metadata.Port
+import com.compose.canvas.metadata.PortType
 import com.compose.canvas.tools.path.BooleanOp
 import com.compose.canvas.tools.path.NodeType
+import com.m3shapes.editor.ExpressiveShapeId
 
 @Composable
 fun InspectorPanel(
@@ -96,13 +110,23 @@ fun InspectorPanel(
         },
         modifier = modifier.width(300.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .heightIn(max = 420.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        InspectorContent(editorState)
+    }
+}
+
+@Composable
+fun InspectorContent(
+    editorState: EditorState,
+    modifier: Modifier = Modifier,
+) {
+    val selected = editorState.selectedNodes()
+    val single = selected.singleOrNull() as? VectorObject
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
             if (selected.size >= 2) {
                 Text("${selected.size} Objekte", style = MaterialTheme.typography.bodyMedium)
                 DeleteElementButton(onClick = { editorState.deleteSelected() }, label = "Elemente löschen")
@@ -129,17 +153,149 @@ fun InspectorPanel(
                 }
             }
             if (single == null && selected.isEmpty()) {
-                Text("Keine Auswahl", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Presets", style = MaterialTheme.typography.labelMedium)
-                TextButton(onClick = { editorState.insertPreset("logicBlock") }) { Text("Logic Block") }
-                TextButton(onClick = { editorState.insertPreset("cookie") }) { Text("Cookie") }
-                TextButton(onClick = { editorState.insertPreset("pill") }) { Text("Pill") }
-                TextButton(onClick = { editorState.insertPreset("arch") }) { Text("Bogen") }
+                CanvasInspector(editorState)
             }
             if (single != null) {
                 ObjectInspector(obj = single, editorState = editorState)
             }
+    }
+}
+
+@Composable
+private fun CanvasInspector(editorState: EditorState) {
+    val document = editorState.document
+    val canvas = document.canvas
+    val viewBox = canvas.effectiveViewBox
+    Text("Viewport", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    Text(document.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField(canvas.width, { width ->
+            editorState.updateDocumentProperties(
+                document.copy(canvas = canvas.copy(width = width.coerceAtLeast(1f))),
+                "Canvas width",
+            )
+        }, "Breite", Modifier.weight(1f))
+        NumberField(canvas.height, { height ->
+            editorState.updateDocumentProperties(
+                document.copy(canvas = canvas.copy(height = height.coerceAtLeast(1f))),
+                "Canvas height",
+            )
+        }, "Höhe", Modifier.weight(1f))
+    }
+    Text("ViewBox", style = MaterialTheme.typography.labelMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField(viewBox.left, { value -> updateViewBox(editorState, viewBox.copy(left = value)) }, "X", Modifier.weight(1f))
+        NumberField(viewBox.top, { value -> updateViewBox(editorState, viewBox.copy(top = value)) }, "Y", Modifier.weight(1f))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField(viewBox.width, { value -> updateViewBox(editorState, viewBox.copy(right = viewBox.left + value.coerceAtLeast(1f))) }, "ViewBox B", Modifier.weight(1f))
+        NumberField(viewBox.height, { value -> updateViewBox(editorState, viewBox.copy(bottom = viewBox.top + value.coerceAtLeast(1f))) }, "ViewBox H", Modifier.weight(1f))
+    }
+    HorizontalDivider()
+    Text("Raster", style = MaterialTheme.typography.labelMedium)
+    NumberField(editorState.gridSize, { value -> editorState.gridSize = value.coerceAtLeast(1f) }, "Rastergröße", Modifier.fillMaxWidth())
+    ToggleRow("Raster sichtbar", editorState.gridVisible) { editorState.gridVisible = it }
+    ToggleRow("Am Raster einrasten", editorState.snapEnabled) { editorState.snapEnabled = it }
+    ToggleRow("Transparenter Hintergrund", canvas.backgroundTransparent) { transparent ->
+        editorState.updateDocumentProperties(
+            document.copy(canvas = canvas.copy(backgroundTransparent = transparent)),
+            "Canvas background",
+        )
+    }
+    HorizontalDivider()
+    Text("Material 3 Shapes", style = MaterialTheme.typography.labelMedium)
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(ExpressiveShapeId.all, key = { it.name }) { shape ->
+            MaterialShapeCarouselItem(
+                shape = shape,
+                onClick = { editorState.insertMaterialShape(shape) },
+            )
         }
+    }
+}
+
+@Composable
+private fun MaterialShapeCarouselItem(
+    shape: ExpressiveShapeId,
+    onClick: () -> Unit,
+) {
+    val geometry = remember(shape) { materialShapePath(shape) }
+    val path = remember(geometry) { geometry.toComposePath() }
+    Surface(
+        modifier = Modifier
+            .width(82.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        tonalElevation = 1.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            val color = MaterialTheme.colorScheme.primary
+            Canvas(modifier = Modifier.size(58.dp)) {
+                withTransform({
+                    scale(
+                        scaleX = size.width / 256f,
+                        scaleY = size.height / 256f,
+                        pivot = androidx.compose.ui.geometry.Offset.Zero,
+                    )
+                }) {
+                    drawPath(path = path, color = color)
+                }
+            }
+            Text(
+                text = shape.label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private fun PathGeometry.toComposePath(): Path = Path().apply {
+    segments.forEach { segment ->
+        when (segment) {
+            is PathSegment.MoveTo -> moveTo(segment.x, segment.y)
+            is PathSegment.LineTo -> lineTo(segment.x, segment.y)
+            is PathSegment.QuadraticBezierTo -> quadraticTo(segment.cx, segment.cy, segment.x, segment.y)
+            is PathSegment.CubicBezierTo -> cubicTo(
+                segment.cx1,
+                segment.cy1,
+                segment.cx2,
+                segment.cy2,
+                segment.x,
+                segment.y,
+            )
+            PathSegment.Close -> close()
+        }
+    }
+}
+
+private fun updateViewBox(editorState: EditorState, viewBox: com.compose.canvas.geometry.RectF) {
+    val document = editorState.document
+    editorState.updateDocumentProperties(
+        document.copy(canvas = document.canvas.copy(viewBox = viewBox)),
+        "Edit viewBox",
+    )
+}
+
+@Composable
+private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -148,6 +304,7 @@ private fun wrapChips(content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp), content = { content() })
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ObjectInspector(obj: VectorObject, editorState: EditorState) {
     val bounds = BoundsCalculator.of(obj)
@@ -157,7 +314,7 @@ private fun ObjectInspector(obj: VectorObject, editorState: EditorState) {
         label = { Text("Name", fontSize = 13.sp) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        textStyle = InspectorValueStyle,
+        textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
         colors = inspectorFieldColors()
     )
     DeleteElementButton(onClick = { editorState.deleteObject(obj.id) })
@@ -193,7 +350,7 @@ private fun ObjectInspector(obj: VectorObject, editorState: EditorState) {
                 onValueChange = { editorState.updateObject(obj.copy(geometry = g.copy(text = it))) },
                 label = { Text("Text", fontSize = 13.sp) },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = InspectorValueStyle,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 colors = inspectorFieldColors()
             )
             NumberField(g.fontSize, { editorState.updateObject(obj.copy(geometry = g.copy(fontSize = it))) }, "Schriftgröße", Modifier.fillMaxWidth())
@@ -270,7 +427,83 @@ private fun ObjectInspector(obj: VectorObject, editorState: EditorState) {
     if (obj.semantics.ports.isNotEmpty() || obj.semantics.anchors.isNotEmpty()) {
         Text("Semantik", style = MaterialTheme.typography.labelSmall)
         Text("Ports: ${obj.semantics.ports.size} · Anker: ${obj.semantics.anchors.size} · Flächen: ${obj.semantics.contentAreas.size}", style = MaterialTheme.typography.bodySmall)
+        obj.semantics.ports.forEach { port ->
+            var typeMenuOpen by remember(port.id) { mutableStateOf(false) }
+            OutlinedTextField(
+                value = port.name,
+                onValueChange = { name ->
+                    updateSemanticPort(editorState, obj, port.id) { it.copy(name = name) }
+                },
+                label = { Text("Portname") },
+                supportingText = {
+                    Text(
+                        listOf(port.connectionType, port.valueType)
+                            .filter(String::isNotBlank)
+                            .joinToString(" · ")
+                            .ifBlank { "CUSTOM" },
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ExposedDropdownMenuBox(
+                expanded = typeMenuOpen,
+                onExpandedChange = { typeMenuOpen = !typeMenuOpen },
+            ) {
+                OutlinedTextField(
+                    value = port.portType.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Porttyp") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(typeMenuOpen) },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = typeMenuOpen,
+                    onDismissRequest = { typeMenuOpen = false },
+                ) {
+                    PortType.entries.forEach { type ->
+                        DropdownMenuItem(
+                            text = { Text(type.name) },
+                            onClick = {
+                                updateSemanticPort(editorState, obj, port.id) { it.copy(portType = type) }
+                                typeMenuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
     }
+}
+
+private fun updateSemanticPort(
+    editorState: EditorState,
+    obj: VectorObject,
+    portId: String,
+    transform: (Port) -> Port,
+) {
+    val currentPort = obj.semantics.ports.firstOrNull { it.id == portId } ?: return
+    val updatedPort = transform(currentPort)
+    val updatedObject = obj.copy(
+        semantics = obj.semantics.copy(
+            ports = obj.semantics.ports.map { if (it.id == portId) updatedPort else it },
+        ),
+    )
+    val metadataPorts = editorState.document.metadata.ports
+    val updatedMetadataPorts = if (metadataPorts.any { it.id == portId }) {
+        metadataPorts.map { if (it.id == portId) updatedPort else it }
+    } else {
+        metadataPorts + updatedPort
+    }
+    editorState.updateDocumentProperties(
+        editorState.document
+            .replaceObject(updatedObject)
+            .copy(metadata = editorState.document.metadata.copy(ports = updatedMetadataPorts)),
+        label = "Edit port ${currentPort.name}",
+    )
 }
 
 private fun geometryLabel(obj: VectorObject): String = when (val g = obj.geometry) {
@@ -300,13 +533,6 @@ private fun DeleteElementButton(
     }
 }
 
-private val InspectorValueStyle = TextStyle(
-    fontSize = 16.sp,
-    lineHeight = 20.sp,
-    fontWeight = FontWeight.Medium,
-    color = ChromeOnSurface
-)
-
 @Composable
 private fun ColorRow(
     color: Color,
@@ -321,7 +547,7 @@ private fun ColorRow(
             modifier = Modifier
                 .size(40.dp)
                 .background(color.copy(alpha = alpha), RoundedCornerShape(8.dp))
-                .border(1.dp, ChromeBorder, RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
                 .clickable { pickerOpen = true }
         )
         OutlinedTextField(
@@ -330,7 +556,7 @@ private fun ColorRow(
             label = { Text("Hex", fontSize = 13.sp) },
             modifier = Modifier.weight(1f),
             singleLine = true,
-            textStyle = InspectorValueStyle,
+        textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             colors = inspectorFieldColors()
         )
     }
@@ -343,7 +569,7 @@ private fun ColorRow(
                 modifier = Modifier
                     .size(28.dp)
                     .background(c, RoundedCornerShape(6.dp))
-                    .border(1.dp, ChromeBorder, RoundedCornerShape(6.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
                     .clickable { onColor(c) }
             )
         }
@@ -373,13 +599,13 @@ private fun NumberField(
 ) {
     var text by remember(value) { mutableStateOf(fmt(value)) }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = ChromeOnSurface)
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
-                .border(1.dp, ChromeBorder, RoundedCornerShape(8.dp))
-                .background(Color.White, RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -390,8 +616,8 @@ private fun NumberField(
                     it.toFloatOrNull()?.let(onValueChange)
                 },
                 singleLine = true,
-                textStyle = InspectorValueStyle,
-                cursorBrush = SolidColor(ChromeOnSurface),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.fillMaxWidth()
             )
         }

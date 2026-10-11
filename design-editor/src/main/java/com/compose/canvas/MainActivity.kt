@@ -45,9 +45,13 @@ fun VectorShapeEditorApp(
     editorState: EditorState = remember {
         EditorState(initialDocument = VectorDocument(name = "Untitled"))
     },
+    viewportController: ViewportController = remember { ViewportController() },
+    showTopBar: Boolean = true,
+    showInspector: Boolean = true,
+    showLayers: Boolean = true,
+    showExport: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    val viewportController = remember { ViewportController() }
     val focusRequester = remember { FocusRequester() }
     var compactLayoutInitialized by remember { mutableStateOf(false) }
 
@@ -77,29 +81,35 @@ fun VectorShapeEditorApp(
                 viewportController = viewportController,
                 modifier = Modifier.fillMaxSize()
             )
-            TopBar(
-                editorState = editorState,
-                viewportController = viewportController,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-            InspectorPanel(
-                editorState = editorState,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-            )
-            LayersPanel(
-                editorState = editorState,
-                modifier = Modifier
-                    .align(if (compact) Alignment.BottomStart else Alignment.CenterEnd)
-                    .padding(
-                        start = if (compact) 8.dp else 0.dp,
-                        end = if (compact) 0.dp else 8.dp,
-                        top = if (compact) 0.dp else 100.dp,
-                        bottom = if (compact) 8.dp else 0.dp
-                    )
-            )
-            if (!compact || editorState.panelState.exportExpanded) {
+            if (showTopBar) {
+                TopBar(
+                    editorState = editorState,
+                    viewportController = viewportController,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
+            if (showInspector) {
+                InspectorPanel(
+                    editorState = editorState,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                )
+            }
+            if (showLayers) {
+                LayersPanel(
+                    editorState = editorState,
+                    modifier = Modifier
+                        .align(if (compact) Alignment.BottomStart else Alignment.CenterEnd)
+                        .padding(
+                            start = if (compact) 8.dp else 0.dp,
+                            end = if (compact) 0.dp else 8.dp,
+                            top = if (compact) 0.dp else 100.dp,
+                            bottom = if (compact) 8.dp else 0.dp
+                        )
+                )
+            }
+            if (showExport && (!compact || editorState.panelState.exportExpanded)) {
                 ExportPanel(
                     editorState = editorState,
                     modifier = Modifier

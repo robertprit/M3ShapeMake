@@ -87,6 +87,29 @@ data class GroupObject(
 object BoundsCalculator {
     fun of(node: SceneNode): RectF? = worldBounds(node, TransformMatrix())
 
+    fun of(document: VectorDocument, id: ObjectId): RectF? {
+        fun walk(nodes: List<SceneNode>, parent: TransformMatrix): RectF? {
+            for (node in nodes) {
+                val world = TransformUtils.multiply(parent, TransformUtils.fromObjectTransform(node.transform))
+                if (node.id == id) {
+                    return when (node) {
+                        is VectorObject -> geometryWorldBounds(node.geometry.boundingRect(), world)
+                        is GroupObject -> node.children.mapNotNull { worldBounds(it, world) }
+                            .reduceOrNull { a, b -> a.union(b) }
+                    }
+                }
+                if (node is GroupObject) {
+                    walk(node.children, world)?.let { return it }
+                }
+            }
+            return null
+        }
+        return walk(document.layers.filter { it.visible }.flatMap { it.objects }, TransformMatrix())
+    }
+
+    fun of(document: VectorDocument, ids: Set<ObjectId>): RectF? =
+        ids.mapNotNull { of(document, it) }.reduceOrNull { a, b -> a.union(b) }
+
     fun ofAll(nodes: List<SceneNode>): RectF? {
         var result: RectF? = null
         for (node in nodes) {
@@ -124,6 +147,20 @@ object WorldTransform {
                 val world = TransformUtils.multiply(parent, TransformUtils.fromObjectTransform(node.transform))
                 if (node.id == id) return world
                 if (node is GroupObject) {
+                    walk(node.children, world)?.let { return it }
+                }
+            }
+            return null
+        }
+        return walk(document.layers.flatMap { it.objects }, TransformMatrix())
+    }
+
+    fun parentMatrixOf(document: VectorDocument, id: ObjectId): TransformMatrix? {
+        fun walk(nodes: List<SceneNode>, parent: TransformMatrix): TransformMatrix? {
+            for (node in nodes) {
+                if (node.id == id) return parent
+                if (node is GroupObject) {
+                    val world = TransformUtils.multiply(parent, TransformUtils.fromObjectTransform(node.transform))
                     walk(node.children, world)?.let { return it }
                 }
             }

@@ -3,6 +3,10 @@ package com.compose.canvas.editor
 import androidx.compose.ui.geometry.Offset
 import com.compose.canvas.core.*
 import com.compose.canvas.geometry.*
+import com.compose.canvas.tools.path.NodeRef
+import com.compose.canvas.tools.path.PathData
+import com.compose.canvas.tools.path.PathNode
+import com.compose.canvas.tools.path.PathSubpath
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -49,6 +53,111 @@ class EditorStateTest {
         val geom = moved.geometry as RectGeometry
         assertEquals(100f, geom.width, 0.001f)
         assertEquals(50f, geom.height, 0.001f)
+    }
+
+    @Test
+    fun `moving child in scaled group follows document pointer delta`() {
+        val child = VectorObject(
+            geometry = RectGeometry(width = 20f, height = 20f),
+            transform = ObjectTransform(x = 10f, y = 15f)
+        )
+        val group = GroupObject(
+            transform = ObjectTransform(x = 100f, y = 50f, scaleX = 2f, scaleY = 2f),
+            children = listOf(child)
+        )
+        val editor = EditorState(
+            VectorDocument(layers = listOf(VectorLayer(name = "L1", objects = listOf(group))))
+        )
+        editor.selectObject(child.id)
+
+        val before = BoundsCalculator.of(editor.document, child.id)!!
+        editor.startDrag(Offset(200f, 200f))
+        editor.updateDrag(Offset(230f, 220f))
+
+        val transient = BoundsCalculator.of(editor.displayDocument(), child.id)!!
+        assertEquals(before.left + 30f, transient.left, 0.001f)
+        assertEquals(before.top + 20f, transient.top, 0.001f)
+
+        editor.endDrag()
+        val moved = BoundsCalculator.of(editor.document, child.id)!!
+        assertEquals(before.left + 30f, moved.left, 0.001f)
+        assertEquals(before.top + 20f, moved.top, 0.001f)
+    }
+
+    @Test
+    fun `path node drag applies incremental pointer movement once`() {
+        val editor = makeEditor()
+        val ref = NodeRef(0, 0)
+        editor.applyPathEdit(
+            PathEditState(
+                active = true,
+                data = PathData(listOf(PathSubpath(listOf(PathNode(Offset(10f, 10f))))))
+            )
+        )
+        editor.startPathEditNodeDrag(ref, Offset(100f, 100f))
+
+        editor.updatePathEditDrag(Offset(110f, 100f))
+        editor.updatePathEditDrag(Offset(120f, 100f))
+        editor.updatePathEditDrag(Offset(130f, 100f))
+
+        assertEquals(40f, editor.pathEdit.data.node(ref)!!.point.x, 0.001f)
+        assertEquals(10f, editor.pathEdit.data.node(ref)!!.point.y, 0.001f)
+    }
+
+    @Test
+    fun `path edit is visible in display document before commit`() {
+        val path = VectorObject(
+            geometry = PathGeometry(
+                segments = listOf(
+                    PathSegment.MoveTo(10f, 10f),
+                    PathSegment.LineTo(40f, 10f),
+                ),
+            )
+        )
+        val editor = makeEditor()
+        editor.addObjectToActiveLayer(path)
+        editor.enterPathEditing(path.id)
+        val ref = NodeRef(0, 0)
+        editor.startPathEditNodeDrag(ref, Offset(10f, 10f))
+        editor.updatePathEditDrag(Offset(25f, 30f))
+
+        val displayed = editor.displayDocument().findObject(path.id)!!
+        val displayedStart = (displayed.geometry as PathGeometry).segments.first() as PathSegment.MoveTo
+        val storedStart = (editor.document.findObject(path.id)!!.geometry as PathGeometry).segments.first() as PathSegment.MoveTo
+
+        assertEquals(25f, displayedStart.x, 0.001f)
+        assertEquals(30f, displayedStart.y, 0.001f)
+        assertEquals(10f, storedStart.x, 0.001f)
+        assertEquals(10f, storedStart.y, 0.001f)
+    }
+
+    @Test
+    fun `resizing child in scaled group follows world selection bounds`() {
+        val child = VectorObject(
+            geometry = RectGeometry(width = 20f, height = 20f),
+            transform = ObjectTransform(x = 10f, y = 15f)
+        )
+        val group = GroupObject(
+            transform = ObjectTransform(x = 100f, y = 50f, scaleX = 2f, scaleY = 2f),
+            children = listOf(child)
+        )
+        val editor = EditorState(
+            VectorDocument(layers = listOf(VectorLayer(name = "L1", objects = listOf(group))))
+        )
+        editor.selectObject(child.id)
+        val before = BoundsCalculator.of(editor.document, child.id)!!
+        val target = RectF(before.left, before.top, before.right + 40f, before.bottom + 20f)
+
+        editor.startResize(HandlePosition.BottomRight, before)
+        editor.updateResizeBounds(target)
+        val transient = BoundsCalculator.of(editor.displayDocument(), child.id)!!
+        assertEquals(target.right, transient.right, 0.001f)
+        assertEquals(target.bottom, transient.bottom, 0.001f)
+
+        editor.finishResize(target)
+        val resized = BoundsCalculator.of(editor.document, child.id)!!
+        assertEquals(target.right, resized.right, 0.001f)
+        assertEquals(target.bottom, resized.bottom, 0.001f)
     }
 
     @Test

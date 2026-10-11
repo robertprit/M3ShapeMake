@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -77,11 +78,12 @@ fun EditorCanvas(
     modifier: Modifier = Modifier
 ) {
     var fitted by remember { mutableStateOf(false) }
+    val workspaceColor = MaterialTheme.colorScheme.background
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFE8E8E8))
+            .background(workspaceColor)
             .clipToBounds()
             .onSizeChanged { size: IntSize ->
                 viewportController.setScreenSize(size.width.toFloat(), size.height.toFloat())
@@ -210,6 +212,7 @@ fun EditorCanvas(
                         selected,
                         viewport,
                         overrideBounds = editorState.currentResizeBounds
+                            ?: BoundsCalculator.of(display, editorState.selection.selectedIds)
                     )
                 }
                 EditorOverlayRenderer.drawCreatePreview(this, editorState.createShapeState, viewport)
@@ -287,12 +290,11 @@ private fun handlePointerDown(
     val docPt = snapped(editorState, raw)
     when (editorState.activeTool) {
         EditorTool.Select -> {
-            val selected = editorState.selectedNodes()
-            val bounds = BoundsCalculator.ofAll(selected)
+            val bounds = BoundsCalculator.of(editorState.document, editorState.selection.selectedIds)
             val handleHit = bounds?.let {
                 SelectionRenderer.hitTestHandle(screenX, screenY, it, viewportController.state)
             }
-            if (handleHit != null && bounds != null) {
+            if (handleHit != null) {
                 if (handleHit == HandleHitType.Rotate) {
                     val angle = atan2(raw.y - bounds.centerY, raw.x - bounds.centerX) * 180f / Math.PI.toFloat()
                     editorState.startRotate(Offset(bounds.centerX, bounds.centerY), angle)

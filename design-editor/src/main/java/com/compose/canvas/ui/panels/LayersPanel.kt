@@ -56,13 +56,21 @@ fun LayersPanel(
         },
         modifier = modifier.width(240.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .heightIn(max = 360.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        LayersContent(editorState)
+    }
+}
+
+@Composable
+fun LayersContent(
+    editorState: EditorState,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 LayerIconButton(onClick = { editorState.addLayer() }) {
                     Icon(Icons.Default.Add, "Ebene", tint = ChromeIcon)
@@ -115,7 +123,6 @@ fun LayersPanel(
                     }
                 }
             }
-        }
     }
 }
 

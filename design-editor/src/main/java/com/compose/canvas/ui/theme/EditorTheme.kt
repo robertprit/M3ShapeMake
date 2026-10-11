@@ -3,6 +3,7 @@ package com.compose.canvas.ui.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
@@ -36,6 +37,32 @@ val EditorLightScheme: ColorScheme = lightColorScheme(
     inversePrimary = Color(0xFFD0BCFF)
 )
 
+val EditorDarkScheme: ColorScheme = darkColorScheme(
+    primary = Color(0xFFD0BCFF),
+    onPrimary = Color(0xFF381E72),
+    primaryContainer = Color(0xFF4F378B),
+    onPrimaryContainer = Color(0xFFEADDFF),
+    secondary = Color(0xFF70DBAE),
+    onSecondary = Color(0xFF003826),
+    secondaryContainer = Color(0xFF005138),
+    onSecondaryContainer = Color(0xFF8FF7C8),
+    tertiary = Color(0xFF84CFFF),
+    onTertiary = Color(0xFF00344B),
+    background = Color(0xFF101014),
+    onBackground = Color(0xFFE5E1E9),
+    surface = Color(0xFF1B1B20),
+    onSurface = Color(0xFFE5E1E9),
+    surfaceVariant = Color(0xFF47464F),
+    onSurfaceVariant = Color(0xFFC9C5D0),
+    outline = Color(0xFF928F99),
+    outlineVariant = Color(0xFF47464F),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    inverseSurface = Color(0xFFE5E1E9),
+    inverseOnSurface = Color(0xFF303034),
+    inversePrimary = Color(0xFF6750A4),
+)
+
 val ChromeSurface = Color(0xFFF7F7FA)
 val ChromeOnSurface = Color(0xFF1B1B1F)
 val ChromeBorder = Color(0xFFC7C5D0)
@@ -44,6 +71,6 @@ val ChromeIconMuted = Color(0xFF5C5B64)
 val ChromeIconDisabled = Color(0xFF8B8A93)
 
 @Composable
-fun EditorTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = EditorLightScheme, content = content)
+fun EditorTheme(darkMode: Boolean = false, content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = if (darkMode) EditorDarkScheme else EditorLightScheme, content = content)
 }

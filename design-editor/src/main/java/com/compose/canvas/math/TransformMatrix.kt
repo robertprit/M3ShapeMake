@@ -15,6 +15,11 @@ data class TransformMatrix(
 
     fun transformPoint(p: Offset): Offset = transformPoint(p.x, p.y)
 
+    fun transformVector(vector: Offset): Offset = Offset(
+        x = m00 * vector.x + m01 * vector.y,
+        y = m10 * vector.x + m11 * vector.y
+    )
+
     fun translate(dx: Float, dy: Float): TransformMatrix = copy(
         m02 = m02 + dx,
         m12 = m12 + dy

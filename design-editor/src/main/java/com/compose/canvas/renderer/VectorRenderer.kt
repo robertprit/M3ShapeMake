@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
@@ -27,6 +28,8 @@ import com.compose.canvas.geometry.EllipseGeometry
 import com.compose.canvas.geometry.LineGeometry
 import com.compose.canvas.geometry.PathGeometry
 import com.compose.canvas.geometry.RectGeometry
+import com.compose.canvas.math.TransformMatrix
+import com.compose.canvas.math.TransformUtils
 import com.compose.canvas.viewport.ViewportState
 
 /**
@@ -47,33 +50,43 @@ object VectorRenderer {
             GridRenderer.draw(scope, document.canvas, viewport, gridSize)
         }
 
-        scope.withTransform({
-            translate(-viewport.panX * viewport.zoom, -viewport.panY * viewport.zoom)
-            scale(viewport.zoom, viewport.zoom)
-        }) {
-            for (layer in document.layers) {
-                if (!layer.visible) continue
-                for (node in layer.objects) {
-                    if (!node.visible) continue
-                    drawNode(this, node, document)
-                }
+        val viewportMatrix = TransformMatrix(
+            m00 = viewport.zoom,
+            m11 = viewport.zoom,
+            m02 = -viewport.panX * viewport.zoom,
+            m12 = -viewport.panY * viewport.zoom
+        )
+        for (layer in document.layers) {
+            if (!layer.visible) continue
+            for (node in layer.objects) {
+                if (!node.visible) continue
+                drawNode(scope, node, document, viewportMatrix, TransformMatrix())
             }
         }
     }
 
-    private fun drawNode(scope: DrawScope, node: SceneNode, document: VectorDocument) {
+    private fun drawNode(
+        scope: DrawScope,
+        node: SceneNode,
+        document: VectorDocument,
+        viewport: TransformMatrix,
+        parentWorld: TransformMatrix
+    ) {
+        val world = TransformUtils.multiply(
+            parentWorld,
+            TransformUtils.fromObjectTransform(node.transform)
+        )
         when (node) {
-            is VectorObject -> drawObject(scope, node, document)
+            is VectorObject -> drawObjectWithMatrix(
+                scope,
+                node,
+                document,
+                TransformUtils.multiply(viewport, world)
+            )
             is com.compose.canvas.core.GroupObject -> {
-                scope.withTransform({
-                    translate(node.transform.x, node.transform.y)
-                    rotate(node.transform.rotation, pivot = Offset.Zero)
-                    scale(node.transform.scaleX, node.transform.scaleY, pivot = Offset.Zero)
-                }) {
-                    for (child in node.children) {
-                        if (!child.visible) continue
-                        drawNode(this, child, document)
-                    }
+                for (child in node.children) {
+                    if (!child.visible) continue
+                    drawNode(scope, child, document, viewport, world)
                 }
             }
         }
@@ -129,10 +142,22 @@ object VectorRenderer {
     }
 
     fun drawObject(scope: DrawScope, obj: VectorObject, document: VectorDocument? = null) {
+        drawObjectWithMatrix(
+            scope,
+            obj,
+            document,
+            TransformUtils.fromObjectTransform(obj.transform)
+        )
+    }
+
+    private fun drawObjectWithMatrix(
+        scope: DrawScope,
+        obj: VectorObject,
+        document: VectorDocument?,
+        matrix: TransformMatrix
+    ) {
         scope.withTransform({
-            translate(obj.transform.x, obj.transform.y)
-            rotate(obj.transform.rotation, pivot = Offset.Zero)
-            scale(obj.transform.scaleX, obj.transform.scaleY, pivot = Offset.Zero)
+            transform(matrix.toComposeMatrix())
         }) {
             when (val geom = obj.geometry) {
                 is RectGeometry -> drawRect(this, geom, obj.fill, obj.stroke, document)
@@ -145,6 +170,18 @@ object VectorRenderer {
                 }
             }
         }
+    }
+
+    private fun TransformMatrix.toComposeMatrix(): Matrix = Matrix().also { result ->
+        result[0, 0] = m00
+        result[1, 0] = m01
+        result[3, 0] = m02
+        result[0, 1] = m10
+        result[1, 1] = m11
+        result[3, 1] = m12
+        result[0, 3] = m20
+        result[1, 3] = m21
+        result[3, 3] = m22
     }
 
     private fun drawRect(
